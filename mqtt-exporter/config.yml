@@ -1,0 +1,22 @@
+mqtt:
+  server: tcp://mosquitto:1883
+  user: ""
+  password: ""
+  topic_path: pico/env
+
+cache:
+  timeout: 120s
+
+json_parsing:
+  separator: .
+
+metrics:
+  - prom_name: pico_co2_ppm
+    mqtt_name: co2
+    help: "CO2 concentration"
+    type: gauge
+
+  - prom_name: pico_lux
+    mqtt_name: lux
+    help: "Light level"
+    type: gauge

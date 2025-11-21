@@ -1,0 +1,25 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+
+# --- Virtualenvs ---
+venv/
+.envrc
+
+# --- IDE ---
+.vscode/
+.idea/
+*.swp
+
+# --- Docker / env ---
+.env
+
+# --- Prometheus / Mosquitto runtime data ---
+prometheus/data/
+mosquitto/data/
+mosquitto/log/
+
+# --- Misc ---
+*.log
