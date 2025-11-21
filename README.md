@@ -13,15 +13,15 @@ Publishes JSON messages with sensor data (CO₂, Lux) to the MQTT topic `pico/en
 {"co2": 1234, "lux": 56.7}
 ```
 
-📬 **Mosquitto** ([`mosquitto/`]mosquitto/)
+📬 **Mosquitto** ([`mosquitto/`](mosquitto/))
 
 Local MQTT broker that receives messages from Pico.
 
-📊 **mqtt-exporter** ([`mqtt-exporter/`]mqtt-exporter/)
+📊 **mqtt-exporter** ([`mqtt-exporter/`](mqtt-exporter/))
 
 Subscribes to specific MQTT topics
 
-🧠 **Prometheus** ([`prometheus/`]prometheus/)
+🧠 **Prometheus** ([`prometheus/`](prometheus/))
 
 Scrapes data from mqtt-exporter
 Stores long-term sensor metrics

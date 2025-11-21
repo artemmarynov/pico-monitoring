@@ -23,3 +23,6 @@ mosquitto/log/
 
 # --- Misc ---
 *.log
+
+# mpy-workbench
+.mpy-workbench/
