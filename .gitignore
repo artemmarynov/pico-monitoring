@@ -26,3 +26,6 @@ mosquitto/log/
 
 # mpy-workbench
 .mpy-workbench/
+
+# secrets
+pico/secrets.py

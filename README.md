@@ -2,16 +2,25 @@
 
 IoT stack for monitoring environment data from **Raspberry Pi Pico** (CO₂, light, …) using **MQTT**, **Prometheus**, **Grafana**, and the Python-based alerting service **Notifier** (with Telegram support via Apprise).
 
----
-
 ## 🏗️ Architecture Overview
 
-### 🌱 Raspberry Pi Pico  
+### 🌱 Raspberry Pi Pico 2 WH
 Publishes JSON messages with sensor data (CO₂, Lux) to the MQTT topic `pico/env`:
 
 ```json
 {"co2": 1234, "lux": 56.7}
 ```
+
+🔌 **Pico firmware** ([`pico/`](pico/))
+
+MicroPython code for Raspberry Pi Pico lives in the pico/ directory:
+[`main.py`](pico/main.py) – state machine: reads sensors and publishes JSON to MQTT.  
+[`wifi.py`](pico/wifi.py), [`mqtt.py`](pico/mqtt.py), [`rtc1302.py`](pico/rtc1302.py), [`bh1750.py`](pico/bh1750.py), [`mh19.py`](pico/mh19.py) – hardware + connectivity helpers.  
+[`secrets.py.example`](pico/secrets.py.example) – template with Wi-Fi/MQTT credentials.
+
+---
+
+### Services
 
 📬 **Mosquitto** ([`mosquitto/`](mosquitto/))
 
@@ -26,27 +35,38 @@ Subscribes to specific MQTT topics
 Scrapes data from mqtt-exporter
 Stores long-term sensor metrics
 
+🚨 **Notifier** ([`notifier/`](notifier/))
+
+Python microservice that: 
+Subscribes to pico/env  
+Parses JSON MQTT payloads 
+Checks CO₂ threshold  
+Sends alerts through Apprise → Telegram 
+Exposes health status via MQTT (pico/env/status)
+
 📈 **Grafana**
 
 Visualizes Prometheus data in dashboards
 Used to show CO₂ trends, light intensity, time-based graphs
 
-🚨 **Notifier** ([`notifier/`](notifier/))
+---
 
-Python microservice that:
-Subscribes to pico/env
-Parses JSON MQTT payloads
-Checks CO₂ threshold
-Sends alerts through Apprise → Telegram
-Exposes health status via MQTT (pico/env/status)
+### 📋 Requirements
 
-📋 **Requirements**
+Docker  
+Docker Compose v2   
+MQTT data source (Pico or any other publishing device)  
 
-Docker
-Docker Compose v2
-MQTT data source (Pico or any other publishing device)
+🖥️ **OS notes**
 
-🚀 **Quick Start**
+Docker stack (Mosquitto, mqtt-exporter, Prometheus, Grafana, Notifier) is expected to run on **Linux** or **WSL**.
+Where you flash the Pico is not critical – it can be done from any OS.
+**mpy-workbench** works only on **Windows**, so if you use it from VS Code you should copy/move the pico/ folder to a Windows filesystem directory (outside WSL) and work with the firmware from there.
+
+---
+
+### 🚀 Quick Start
+
 1️⃣ Clone repository
 ```bash
 git clone https://github.com/artemmarynov/pico-monitoring.git
@@ -68,11 +88,13 @@ NOTIFIER_APPRISE_URL=tgram://YOUR_BOT_TOKEN/YOUR_CHAT_ID
 docker compose up -d --build
 ```
 
+---
+
 🌐 **Services Overview**
 
 | Service                   | URL / Address                                                  |
 | ------------------------- | -------------------------------------------------------------- |
-| **Mosquitto**             | mqtt://localhost:1883                                          |
+| **Mosquitto**             | [mqtt://localhost:1883](mqtt://localhost:1883)                 |
 | **Prometheus**            | [http://localhost:9091](http://localhost:9091)                 |
 | **Grafana**               | [http://localhost:3001](http://localhost:3001)                 |
 | **mqtt-exporter metrics** | [http://localhost:9641/metrics](http://localhost:9641/metrics) |
@@ -116,18 +138,20 @@ Source code is located in the notifier/ directory.
 
 Notifier’s Docker container runs a health check every 30s:
 
-connects to MQTT broker
-subscribes to <BASE_TOPIC>/status
-expects message "online"
-if the message is missing or incorrect → container becomes unhealthy
+connects to MQTT broker 
+subscribes to <BASE_TOPIC>/status   
+expects message "online"  
+if the message is missing or incorrect → container becomes unhealthy  
 
 Healthcheck is defined in:
 
-Dockerfile
-docker-compose.yml
-src/healthcheck.py
+Dockerfile  
+docker-compose.yml  
+src/healthcheck.py  
+
+---
 
 📜 **License**
 
-This project is intended for educational IoT coursework.
+This project is intended for educational purposes.  
 You may use it as a reference for your own monitoring and alerting stacks.
