@@ -62,26 +62,29 @@ def on_message(client, userdata, msg):
 
     co2 = data.get("co2")
     lux = data.get("lux")
+    hum = data.get("hum")
+    temp = data.get("temp")
 
-    logging.info(f"Parsed data: co2={co2}, lux={lux}")
+    logging.info(f"Parsed data: co2={co2}, lux={lux}, hum={hum}, temp={temp}")
 
     if co2 is not None and co2 > 1500:
         logging.warning(f"High CO₂ detected: {co2} ppm — sending notification!")
-        send_alert(co2, lux, data)
+        send_alert(co2, lux, temp, hum, data)
 
 def on_disconnect(client, userdata, rc):
-    logging.warning(f"Disconnected from MQTT broker with rc={rc}")
+    logging.warning(f"Disconnected with rc={rc}. Reconnecting...")
     try:
-        status_topic = f"{settings.base_topic}/status"
-        logging.info(f"Publishing status 'offline' to {status_topic}")
-        client.publish(status_topic, "offline", retain=True)
-    except Exception:
-        pass
+        time.sleep(2)
+        client.reconnect()
+    except Exception as e:
+        logging.error(f"Reconnect failed: {e}")
 
-def send_alert(co2_value, lux_value, data):
+def send_alert(co2_value, lux_value, temp_value, hum_value, data):
     message = (
         f"⚠️ High CO₂ detected: {co2_value} ppm\n"
         f"💡 Lux: {lux_value}\n"
+        f"🌡️ Temp: {temp_value} °C\n"
+        f"💧 Humidity: {hum_value} %"
     )
 
     logging.info(f"Alert message: {message}")

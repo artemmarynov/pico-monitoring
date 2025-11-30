@@ -67,6 +67,38 @@ services:
     networks:
       - monitoring
 
+  prom-to-postgres:
+    build: ./prom-to-postgres
+    container_name: prom-to-postgres
+    restart: unless-stopped
+    environment:
+      - PROM_URL=http://prometheus:9090
+      - PG_HOST=postgres
+      - PG_DB=metrics
+      - PG_USER=admin
+      - PG_PASSWORD=admin
+      - EXPORT_INTERVAL=300
+    depends_on:
+      - prometheus
+      - postgres
+    networks:
+      - monitoring
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: metrics
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - monitoring
+
   grafana:
     image: grafana/grafana:latest
     container_name: grafana
@@ -90,3 +122,4 @@ networks:
 volumes:
   grafana-data:
   prometheus-data:
+  postgres-data:

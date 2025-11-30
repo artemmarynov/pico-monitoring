@@ -7,6 +7,7 @@ from mqtt import connect_mqtt
 from rtc1302 import sync_time
 from bh1750 import read_lux_once
 from mh19 import read_co2_once
+from dht22 import read_temperature_once, read_humidity_once
 
 SLEEP_SEC = 10
 STATE_CONNECTING_WIFI = "connecting_wifi"
@@ -24,8 +25,15 @@ def do_measurement():
 
     co2 = read_co2_once()
     lux = read_lux_once()
+    temp = read_temperature_once()
+    hum = read_humidity_once()
 
-    payload = ujson.dumps({"co2": co2, "lux": lux})
+    payload = ujson.dumps({
+        "co2": co2,
+        "lux": lux,
+        "temp": temp,
+        "hum": hum,
+    })
     client.publish(secrets["TOPIC_SENSOR"], payload)
     print("Measurements:", payload)
 

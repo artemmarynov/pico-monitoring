@@ -1,3 +1,4 @@
+# mqtt-exporter/config.yml
 mqtt:
   server: tcp://mosquitto:1883
   user: ""
@@ -11,7 +12,7 @@ json_parsing:
   separator: .
 
 metrics:
-  - prom_name: pico_co2_ppm
+  - prom_name: pico_co2
     mqtt_name: co2
     help: "CO2 concentration"
     type: gauge
@@ -19,4 +20,14 @@ metrics:
   - prom_name: pico_lux
     mqtt_name: lux
     help: "Light level"
+    type: gauge
+
+  - prom_name: pico_temp
+    mqtt_name: temp
+    help: "Temperature in Celsius"
+    type: gauge
+
+  - prom_name: pico_hum
+    mqtt_name: hum
+    help: "Relative Humidity in percent"
     type: gauge
