@@ -1,5 +1,7 @@
 # docker-compose.yml
 services:
+  env_file:
+    - .env
 
   notifier:
     build: ./notifier
@@ -30,8 +32,6 @@ services:
       - "9001:9001"  
     volumes:
       - ./mosquitto/config:/mosquitto/config
-      - ./mosquitto/data:/mosquitto/data
-      - ./mosquitto/log:/mosquitto/log
     networks:
       - monitoring
 
@@ -55,11 +55,10 @@ services:
     restart: unless-stopped
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./prometheus/data:/prometheus
     command:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
-      - "--storage.tsdb.retention.time=180d"
+      - "--storage.tsdb.retention.time=1d"
     ports:
       - "9091:9090"
     depends_on:
@@ -71,13 +70,8 @@ services:
     build: ./prom-to-postgres
     container_name: prom-to-postgres
     restart: unless-stopped
-    environment:
-      - PROM_URL=http://prometheus:9090
-      - PG_HOST=postgres
-      - PG_DB=metrics
-      - PG_USER=admin
-      - PG_PASSWORD=admin
-      - EXPORT_INTERVAL=300
+    env_file:
+      - .env
     depends_on:
       - prometheus
       - postgres
@@ -121,5 +115,4 @@ networks:
 
 volumes:
   grafana-data:
-  prometheus-data:
   postgres-data:
