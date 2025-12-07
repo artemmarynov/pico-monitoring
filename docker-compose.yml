@@ -1,8 +1,5 @@
 # docker-compose.yml
 services:
-  env_file:
-    - .env
-
   notifier:
     build: ./notifier
     image: am106ac/notifier:latest

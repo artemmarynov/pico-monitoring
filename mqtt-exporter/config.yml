@@ -6,7 +6,7 @@ mqtt:
   topic_path: pico/env
 
 cache:
-  timeout: 120s
+  timeout: 15s
 
 json_parsing:
   separator: .
