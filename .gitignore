@@ -1,21 +1,34 @@
-# --- IDE ---
-.idea/
-
-# --- env ---
-.env
-.venv/
-
-# --- Prometheus runtime data ---
-prometheus/data/
-
-# mpy-workbench
+# --- backend ---
+/backend/.idea/
+/backend/.env
+/backend/.venv/
+/backend/prometheus/data/
 .mpy-workbench/
+/backend/pico/secrets.py
+/backend/analysis.ipynb
 
-# secrets
-pico/secrets.py
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
-# analysis
-analysis.ipynb
+node_modules
+dist
+dist-ssr
+*.local
 
-# gitignore
-.gitignore
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+>>>>>>> 6fcea897c46f79b86d7010b167889fefba72329b
