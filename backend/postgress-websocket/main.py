@@ -49,7 +49,7 @@ async def mqtt_bridge(app: FastAPI):
             async with MQTTClient(MQTT_BROKER) as client:
                 await client.subscribe("pico/env")
                 async for message in client.messages:
-                    data = json.loads(message.payload.decode())
+                    data = json.loads(message.payload.decode()) # type: ignore
                     
                     # 1. Save to database
                     async with app.state.pool.acquire() as conn:
