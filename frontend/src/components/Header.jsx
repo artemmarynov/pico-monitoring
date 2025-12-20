@@ -1,7 +1,7 @@
 import { NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-function Header() {
+function Header({ onHomeClick }) {
   const { isAuthenticated } = useAuth();
   const navigate = useNavigate();
 
@@ -22,10 +22,25 @@ function Header() {
         </div>
 
         <nav className="nav">
-          <NavLink to="/" className="nav-btn">Home</NavLink>
-          <NavLink to="/about" className="nav-btn">About us</NavLink>
-          <NavLink to="/contacts" className="nav-btn">Contacts</NavLink>
-          <NavLink to="/admin" className="nav-btn">Admin dashboard</NavLink>
+          <NavLink
+            to="/"
+            className="nav-btn"
+            onClick={onHomeClick}
+          >
+            Home
+          </NavLink>
+
+          <NavLink to="/about" className="nav-btn">
+            About us
+          </NavLink>
+
+          <NavLink to="/contacts" className="nav-btn">
+            Contacts
+          </NavLink>
+
+          <button className="nav-btn" onClick={handleAdminClick}>
+            Admin dashboard
+          </button>
         </nav>
       </div>
     </header>

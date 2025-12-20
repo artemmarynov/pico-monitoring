@@ -15,7 +15,6 @@ function Contacts() {
 
   const onSubmit = (e) => {
     e.preventDefault();
-    // Пока без backend — просто заглушка
     alert("Message sent (demo).");
     setForm({ name: "", phone: "", email: "", message: "" });
   };

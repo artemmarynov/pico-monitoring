@@ -32,6 +32,39 @@ services:
     networks:
       - monitoring
 
+  postgres:
+    container_name: pico_metrics
+    image: postgres:latest
+    
+    volumes:
+      - postgres_data:/var/lib/postgresql  # Проверь имя здесь
+    ports:
+      - "54827:5432"
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${PG_USER}
+      POSTGRES_DB: ${PG_DB}
+      POSTGRES_PASSWORD: ${PG_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - monitoring
+
+  fastapi:
+    container_name: fastapi_app
+    build: .
+    ports:
+      - "8000:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - monitoring
+
   mqtt-exporter:
     image: hikhvar/mqtt2prometheus:latest
     container_name: mqtt-exporter
@@ -73,22 +106,7 @@ services:
       - prometheus
       - postgres
     networks:
-      - monitoring
-
-  postgres:
-    image: postgres:16
-    container_name: postgres
-    restart: unless-stopped
-    environment:
-      POSTGRES_USER: admin
-      POSTGRES_PASSWORD: admin
-      POSTGRES_DB: metrics
-    volumes:
-      - postgres-data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
-    networks:
-      - monitoring
+      - monitoring  
 
   grafana:
     image: grafana/grafana:latest
@@ -112,4 +130,4 @@ networks:
 
 volumes:
   grafana-data:
-  postgres-data:
+  postgres_data:

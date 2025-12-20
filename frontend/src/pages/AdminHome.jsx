@@ -1,49 +1,27 @@
-import { useNavigate, Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+import LineChart from "../components/LineChart";
 
 function AdminHome() {
-  const { isAdmin, logout } = useAuth();
-  const navigate = useNavigate();
-
-  if (!isAdmin) {
-    return <Navigate to="/admin/login" replace />;
-  }
-
-  const handleExit = () => {
-    logout();
-    navigate("/admin/login");
-  };
-
   return (
-    <main className="admin-page">
-      <aside className="admin-sidebar">
-        <img
-          className="admin-avatar"
-          src="/assets/avatar.jpg"
-          alt="Admin avatar"
-        />
+    <>
+      <h1 className="dashboard-title">Website traffic schedule</h1>
 
-        <h3>Hello Martin!</h3>
-
-        <button className="exit-btn" onClick={handleExit}>
-          Exit
-        </button>
-
-        <button className="menu-btn primary">Models</button>
-        <button className="menu-btn secondary">Performance</button>
-        <button className="menu-btn tertiary">Risk</button>
-      </aside>
-
-      <section className="admin-content">
-        <h2 className="dashboard-title">Website traffic schedule</h2>
-
-        <img
-          className="dashboard-image"
-          src="/assets/chart.png"
-          alt="Website traffic chart"
-        />
-      </section>
-    </main>
+      <LineChart
+        title="Sessions"
+        labels={[
+          "Jan 1", "Jan 2", "Jan 3", "Jan 4", "Jan 5", "Jan 6", "Jan 7",
+        ]}
+        datasets={[
+          {
+            label: "Sessions",
+            data: [18, 22, 27, 19, 30, 15, 48],
+            borderColor: "#5bc0c8",
+            backgroundColor: "rgba(91,192,200,0.3)",
+            fill: true,
+            pointRadius: 5,
+          },
+        ]}
+      />
+    </>
   );
 }
 
