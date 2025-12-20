@@ -1,0 +1,115 @@
+# docker-compose.yml
+services:
+  notifier:
+    build: ./notifier
+    image: am106ac/notifier:latest
+    container_name: notifier
+    restart: unless-stopped
+    environment:
+      - NOTIFIER_BROKER=mosquitto
+      - NOTIFIER_PORT=1883
+      - NOTIFIER_BASE_TOPIC=pico/env
+      - NOTIFIER_APPRISE_URL=${NOTIFIER_APPRISE_URL}
+    depends_on:
+      - mosquitto
+    healthcheck:
+      test: ["CMD", "python3", "/app/healthcheck.py"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - monitoring
+
+  mosquitto:
+    image: eclipse-mosquitto:latest
+    container_name: mosquitto
+    restart: unless-stopped
+    ports:
+      - "1883:1883"
+      - "9001:9001"  
+    volumes:
+      - ./mosquitto/config:/mosquitto/config
+    networks:
+      - monitoring
+
+  mqtt-exporter:
+    image: hikhvar/mqtt2prometheus:latest
+    container_name: mqtt-exporter
+    restart: unless-stopped
+    command: ["-config", "/config.yml"]
+    volumes:
+      - ./mqtt-exporter/config.yml:/config.yml
+    ports:
+      - "9641:9641"
+    depends_on:
+      - mosquitto
+    networks:
+      - monitoring
+
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: prometheus
+    restart: unless-stopped
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+    command:
+      - "--config.file=/etc/prometheus/prometheus.yml"
+      - "--storage.tsdb.path=/prometheus"
+      - "--storage.tsdb.retention.time=1d"
+    ports:
+      - "9091:9090"
+    depends_on:
+      - mqtt-exporter
+    networks:
+      - monitoring
+
+  prom-to-postgres:
+    build: ./prom-to-postgres
+    container_name: prom-to-postgres
+    restart: unless-stopped
+    env_file:
+      - .env
+    depends_on:
+      - prometheus
+      - postgres
+    networks:
+      - monitoring
+
+  postgres:
+    image: postgres:16
+    container_name: postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: metrics
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - monitoring
+
+  grafana:
+    image: grafana/grafana:latest
+    container_name: grafana
+    restart: unless-stopped
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana-data:/var/lib/grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+    networks:
+      - monitoring
+
+networks:
+  monitoring:
+    driver: bridge
+
+volumes:
+  grafana-data:
+  postgres-data:

@@ -1,93 +1,206 @@
-# Návrh aplikácie pre analýzu a monitorovanie dát z interiéru
+# 📡 pico-monitoring
 
+IoT stack for monitoring environment data from **Raspberry Pi Pico 2 WH** (CO₂, light, temperature, humidity) using **MQTT**, **Prometheus**, **PostgreSQL**, **Grafana**, and the Python-based alerting service **Notifier** (with Telegram support via Apprise).
 
+## 🏗️ Architecture Overview
 
-## Getting started
+### 🌱 Raspberry Pi Pico 2 WH
+Publishes JSON messages with sensor data (co₂, light, temperature, humidity) to the MQTT topic `pico/env`:
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
-
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
-
-## Add your files
-
-- [ ] [Create](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#create-a-file) or [upload](https://docs.gitlab.com/ee/user/project/repository/web_editor.html#upload-a-file) files
-- [ ] [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
-
-```
-cd existing_repo
-git remote add origin https://git.kpi.fei.tuke.sk/iot2/navrh-aplikacie-pre-analyzu-a-monitorovanie-dat-z-interieru.git
-git branch -M main
-git push -uf origin main
+```json
+{"co2": 1234, "lux": 56.7, "temp": 24.3, "hum": 58.7}
 ```
 
-## Integrate with your tools
+🔌 **Pico firmware** ([`pico/`](pico/))
 
-- [ ] [Set up project integrations](https://git.kpi.fei.tuke.sk/iot2/navrh-aplikacie-pre-analyzu-a-monitorovanie-dat-z-interieru/-/settings/integrations)
+MicroPython code for Raspberry Pi Pico lives in the pico/ directory:
+[`main.py`](pico/main.py) – state machine: reads sensors and publishes JSON to MQTT.  
+[`wifi.py`](pico/wifi.py), [`mqtt.py`](pico/mqtt.py), [`rtc1302.py`](pico/rtc1302.py), [`bh1750.py`](pico/bh1750.py), [`mh19.py`](pico/mh19.py), [`dht22`](pico/dht22.py) – hardware + connectivity helpers.  
+[`secrets.py.example`](pico/secrets.py.example) – template with Wi-Fi/MQTT credentials.
 
-## Collaborate with your team
+---
+### Services
 
-- [ ] [Invite team members and collaborators](https://docs.gitlab.com/ee/user/project/members/)
-- [ ] [Create a new merge request](https://docs.gitlab.com/ee/user/project/merge_requests/creating_merge_requests.html)
-- [ ] [Automatically close issues from merge requests](https://docs.gitlab.com/ee/user/project/issues/managing_issues.html#closing-issues-automatically)
-- [ ] [Enable merge request approvals](https://docs.gitlab.com/ee/user/project/merge_requests/approvals/)
-- [ ] [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+📬 **Mosquitto** ([`mosquitto/`](mosquitto/))
 
-## Test and Deploy
+Local MQTT broker that receives messages from Pico.       
 
-Use the built-in continuous integration in GitLab.
+---
+📊 **mqtt-exporter** ([`mqtt-exporter/`](mqtt-exporter/))
 
-- [ ] [Get started with GitLab CI/CD](https://docs.gitlab.com/ee/ci/quick_start/)
-- [ ] [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/ee/user/application_security/sast/)
-- [ ] [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/ee/topics/autodevops/requirements.html)
-- [ ] [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/ee/user/clusters/agent/)
-- [ ] [Set up protected environments](https://docs.gitlab.com/ee/ci/environments/protected_environments.html)
+Subscribes to `pico/env` and exposes the sensor readings as Prometheus metrics:   
+- `pico_co2` – CO₂ concentration (ppm)  
+- `pico_lux` – light level (lux)   
+- `pico_temp` – temperature (°C)  
+- `pico_hum` – relative humidity (%)  
 
-***
+---
+🧠 **Prometheus** ([`prometheus/`](prometheus/))
 
-# Editing this README
+Scrapes metrics from mqtt-exporter
+Acts as a metrics source for:
+Grafana (visualization)
+prom-to-postgres (export to PostgreSQL)
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+---
+🗄️ **PostgreSQL + prom-to-postgres** ([`prom-to-postgres/`](prom-to-postgres/))
 
-## Suggestions for a good README
+- PostgreSQL stores long-term time-series data for all four metrics: CO₂, light, temperature, humidity.
+- prom-to-postgres is a Python service that:  
+  - Periodically queries Prometheus HTTP API for:   
+    `pico_temp`     
+    `pico_hum`  
+    `pico_co2`  
+    `pico_lux`  
+  - Inserts the current snapshot into the `sensor_metrics` table in the `metrics` database.   
+  
+Resulting table structure (created automatically on first run):
+```sql
+CREATE TABLE IF NOT EXISTS sensor_metrics (
+    time        TIMESTAMP,
+    temperature REAL,
+    humidity    REAL,
+    co2         REAL,
+    lighting    REAL
+);
+```
+---
+🚨 **Notifier** ([`notifier/`](notifier/))
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+Python microservice that:
+-  Subscribes to `pico/env`  
+-  Parses JSON MQTT payloads 
+-  Checks CO₂ threshold  
+-  Sends alerts through Apprise → Telegram 
+-  Exposes health status via MQTT (`pico/env/status`)
+---
+📈 **Grafana**
 
-## Name
-Choose a self-explaining name for your project.
+- Visualizes Prometheus data in dashboards
+- Can show:
+  - CO₂ trends
+  - Light intensity
+  - Temperature evolution
+  - Humidity changes
+  - Combined time-based graphs for all four metrics
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+---
+### 📋 Requirements
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+- Docker  
+- Docker Compose v2   
+- MQTT data source (**Raspberry Pi Pico 2 WH** or any other publishing device)
+---
+🖥️ **OS notes**
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+- Docker stack (Mosquitto, mqtt-exporter, Prometheus, Grafana, Postgres, Notifier, prom-to-postgres) is expected to run on **Linux** or **WSL**.
+- Where you flash the Pico is not critical – it can be done from any OS.
+- **mpy-workbench** works only on **Windows**, so if you use it from VS Code you should copy/move the `pico/` folder to a Windows filesystem directory (outside WSL) and work with the firmware from there.
+---
+### 🚀 Quick Start
+1️⃣ Clone repository
+```bash
+git clone https://github.com/artemmarynov/pico-monitoring.git
+cd pico-monitoring
+```
+2️⃣ Create .env
+```bash
+cp .env.example .env
+```
+Then edit the file and set:
+```ini
+NOTIFIER_APPRISE_URL=tgram://YOUR_BOT_TOKEN/YOUR_CHAT_ID
+# Prometheus → Postgres exporter settings
+PROM_URL=http://prometheus:9090
+PG_HOST=postgres
+PG_DB=metrics
+PG_USER=admin
+PG_PASSWORD=admin
+EXPORT_INTERVAL=10
+```
+3️⃣ Launch the full stack
+```bash
+docker compose up -d --build
+```
+---
+🌐 **Services Overview**
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+| Service                   | URL / Address                                                  |
+| ------------------------- | -------------------------------------------------------------- |
+| **Mosquitto**             | `mqtt://localhost:1883`          |
+| **Prometheus**            | [http://localhost:9091](http://localhost:9091)                 |
+| **Grafana**               | [http://localhost:3001](http://localhost:3001)                 |
+| **mqtt-exporter metrics** | [http://localhost:9641/metrics](http://localhost:9641/metrics) |
+| **PostgreSQL**            | `localhost:5432` (DB: `metrics`, user: `admin`, password: admin) |
+---
+🧪 **Testing MQTT Messaging**
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Send a test message manually:
+```bash
+docker exec -it mosquitto mosquitto_pub \
+  -h mosquitto -p 1883 \
+  -t pico/env \
+  -m '{"co2": 2000, "lux": 100, "temp": 24.5, "hum": 60.0}'
+```
+Prometheus (via mqtt-exporter) will see updated:
+`pico_co2`,
+`pico_lux`,
+`pico_temp`,
+`pico_hum`.   
+**Notifier** will react if CO₂ exceeds the threshold → Notifier sends a Telegram alert 🚨.
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+🧠 **prom-to-postgres Environment Variables**
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Defined in `.env` and passed via `env_file` in `docker-compose.yml`:
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+| Variable          | Required | Description                                            |
+| ----------------- | -------- | ------------------------------------------------------ |
+| `PROM_URL`        | ✔️ yes   | Prometheus base URL (inside Docker network)            |
+| `PG_HOST`         | ✔️ yes   | PostgreSQL hostname (`postgres` in docker-compose)     |
+| `PG_DB`           | ✔️ yes   | Database name (default: `metrics`)                     |
+| `PG_USER`         | ✔️ yes   | Database user (default: `admin`)                       |
+| `PG_PASSWORD`     | ✔️ yes   | Database password                                      |
+| `EXPORT_INTERVAL` | ✔️ yes   | Interval (in seconds) between metric exports (e.g. 10) |
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+🧩 **Notifier Service Details**
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
+Source code is located in the `notifier/` directory.
 
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
+| File                 | Purpose                               |
+| -------------------- | ------------------------------------- |
+| `src/main.py`        | Main MQTT client and alerting logic   |
+| `src/models.py`      | Config loader using Pydantic Settings |
+| `src/healthcheck.py` | Docker health-check script            |
+| `Dockerfile`         | Image build instructions              |
+| `requirements.txt`   | Python dependencies                   |
 
-## License
-For open source projects, say how it is licensed.
+⚙️ **Notifier Environment Variables**
 
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+| Variable               | Required | Description                         |
+| ---------------------- | -------- | ----------------------------------- |
+| `NOTIFIER_BROKER`      | ✔️ yes   | MQTT broker hostname (`mosquitto`)  |
+| `NOTIFIER_PORT`        | ✖️ no    | Port (default: `1883`)              |
+| `NOTIFIER_USER`        | ✖️ no    | MQTT username                       |
+| `NOTIFIER_PASSWORD`    | ✖️ no    | MQTT password                       |
+| `NOTIFIER_BASE_TOPIC`  | ✔️ yes   | MQTT base topic (`pico/env`)        |
+| `NOTIFIER_APPRISE_URL` | ✖️ no    | Apprise URL (Telegram, Email, etc.) |
+
+❤️ **Healthcheck**
+
+Notifier’s Docker container runs a health check every 30s:  
+- connects to MQTT broker 
+- subscribes to `<BASE_TOPIC>/status`   
+- expects message `"online" `
+- if the message is missing or incorrect → container becomes unhealthy  
+
+Healthcheck is defined in:  
+`Dockerfile`  
+`docker-compose.yml`  
+`src/healthcheck.py`  
+
+---
+
+📜 **License**
+
+This project is intended for educational purposes.  
+You may use it as a reference for your own monitoring, alerting and metrics storage stacks.
