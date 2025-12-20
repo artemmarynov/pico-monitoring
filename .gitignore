@@ -1,8 +1,9 @@
 # --- IDE ---
 .idea/
 
-# --- Docker / env ---
+# --- env ---
 .env
+.venv/
 
 # --- Prometheus runtime data ---
 prometheus/data/
@@ -12,3 +13,9 @@ prometheus/data/
 
 # secrets
 pico/secrets.py
+
+# analysis
+analysis.ipynb
+
+# gitignore
+.gitignore
