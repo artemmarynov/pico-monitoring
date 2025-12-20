@@ -6,6 +6,7 @@
 .mpy-workbench/
 /backend/pico/secrets.py
 /backend/analysis.ipynb
+/backend/.env.example
 
 # Logs
 logs
