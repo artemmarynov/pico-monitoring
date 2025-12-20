@@ -76,9 +76,22 @@ async def lifespan(app: FastAPI):
     # Create a connection pool at the start of the server
     app.state.pool = await asyncpg.create_pool(**DATABASE_CONFIG)    
 
+    # 2) Create table if not exists
+    async with app.state.pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS sensor_metrics (
+                time TIMESTAMP,
+                temperature REAL,
+                humidity REAL,
+                co2 REAL,
+                lighting REAL
+            );
+        """)
+        print("DEBUG: sensor_metrics table ensured")
+
     # Запускаем MQTT мост фоном
     mqtt_task = asyncio.create_task(mqtt_bridge(app))
-    
+
     yield
     
     # Close everything after shuting down

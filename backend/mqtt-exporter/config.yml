@@ -3,7 +3,7 @@ mqtt:
   server: tcp://mosquitto:1883
   user: ""
   password: ""
-  topic_path: pico/env
+  topic_path: artem/pico2wh/env
 
 cache:
   timeout: 15s
