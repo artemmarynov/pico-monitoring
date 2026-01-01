@@ -6,6 +6,7 @@ import asyncpg
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from aiomqtt import Client as MQTTClient
 from datetime import datetime, timezone
+from fastapi.middleware.cors import CORSMiddleware
 
 # CONFIGURATION
 MQTT_BROKER = os.getenv("MQTT_BROKER", "mosquitto")
@@ -100,15 +101,27 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # --- API ENDPOINTS ---
 
 @app.get("/history")
 async def get_history():
-    """Outputs the last 50 readings from the DB"""
     async with app.state.pool.acquire() as conn:
-        rows = await conn.fetch("SELECT 'time' as time, temperature, humidity, co2, lighting FROM public.sensor_metrics ORDER BY time DESC LIMIT 50")
-    #Convert the data to a dictionary
-    return [dict(row) for row in rows]
+
+        rows = await conn.fetch("""
+            SELECT time, temperature, humidity, co2, lighting 
+            FROM sensor_metrics 
+            ORDER BY time DESC 
+            LIMIT 100
+        """)
+    return list(reversed([dict(row) for row in rows]))
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

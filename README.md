@@ -107,6 +107,13 @@ cd pico-monitoring
 ```bash
 cp .env.example .env
 ```
+
+Access the front-end by that link:
+http://localhost:5173
+
+Backend:
+http://localhost:8000/docs
+
 Then edit the file and set:
 ```ini
 NOTIFIER_APPRISE_URL=tgram://YOUR_BOT_TOKEN/YOUR_CHAT_ID

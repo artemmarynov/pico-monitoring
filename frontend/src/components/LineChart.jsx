@@ -1,47 +1,76 @@
+import React from 'react';
 import {
   Chart as ChartJS,
-  LineElement,
-  PointElement,
-  LinearScale,
   CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
   Tooltip,
   Legend,
-} from "chart.js";
-import { Line } from "react-chartjs-2";
-import ChartCard from "./ChartCard";
+  Filler
+} from 'chart.js';
+import { Line } from 'react-chartjs-2';
 
 ChartJS.register(
-  LineElement,
-  PointElement,
-  LinearScale,
   CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
   Tooltip,
-  Legend
+  Legend,
+  Filler
 );
 
-function LineChart({ title, labels, datasets }) {
+const LineChart = ({ title, labels, datasets }) => {
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        position: 'top',
+        labels: {
+          color: '#e5e7eb',
+          font: { size: 12 }
+        }
+      },
+      title: {
+        display: !!title,
+        text: title,
+        color: '#ffffff',
+        font: { size: 16 }
+      },
+      tooltip: {
+        backgroundColor: '#1f2937',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#374151',
+        borderWidth: 1
+      }
+    },
+    scales: {
+      y: {
+        grid: { color: '#374151' },
+        ticks: { color: '#9ca3af' }
+      },
+      x: {
+        grid: { display: false },
+        ticks: { color: '#9ca3af' }
+      }
+    }
+  };
+
+  const data = {
+    labels: labels || [],
+    datasets: datasets || []
+  };
+
   return (
-    <ChartCard title={title}>
-      <Line
-        data={{ labels, datasets }}
-        options={{
-          responsive: true,
-          maintainAspectRatio: false,
-          tension: 0.4,
-          plugins: {
-            legend: {
-              position: "bottom",
-            },
-          },
-          scales: {
-            y: {
-              beginAtZero: true,
-            },
-          },
-        }}
-      />
-    </ChartCard>
+    <div style={{ height: '400px', width: '100%' }}>
+      <Line options={options} data={data} />
+    </div>
   );
-}
+};
 
 export default LineChart;
