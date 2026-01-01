@@ -7,7 +7,9 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from aiomqtt import Client as MQTTClient
 from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
-
+from fastapi import Query
+from datetime import datetime
+from typing import Optional
 # CONFIGURATION
 MQTT_BROKER = os.getenv("MQTT_BROKER", "mosquitto")
 
@@ -112,16 +114,63 @@ app.add_middleware(
 # --- API ENDPOINTS ---
 
 @app.get("/history")
-async def get_history():
-    async with app.state.pool.acquire() as conn:
+async def get_history(
+    limit: int = 100, 
+    start_date: Optional[str] = None, 
+    end_date: Optional[str] = None,
+    aggregate: Optional[str] = None
+):
+    print(f"DEBUG: Received request with aggregate='{aggregate}'")
 
-        rows = await conn.fetch("""
-            SELECT time, temperature, humidity, co2, lighting 
-            FROM sensor_metrics 
-            ORDER BY time DESC 
-            LIMIT 100
-        """)
-    return list(reversed([dict(row) for row in rows]))
+    async with app.state.pool.acquire() as conn:
+        allowed = ["minute", "hour", "day", "month"]
+        
+        if aggregate and aggregate in allowed:
+            query = f"""
+                SELECT 
+                    date_trunc('{aggregate}', time)::timestamp AS bucket, 
+                    ROUND(AVG(temperature)::numeric, 2)::float AS temperature, 
+                    ROUND(AVG(humidity)::numeric, 2)::float AS humidity, 
+                    ROUND(AVG(co2)::numeric, 2)::float AS co2
+                FROM sensor_metrics
+            """
+            params = []
+            where_clauses = []
+            
+            if start_date:
+                where_clauses.append(f"time >= ${len(params)+1}")
+                params.append(datetime.fromisoformat(start_date))
+            if end_date:
+                where_clauses.append(f"time <= ${len(params)+1}")
+                params.append(datetime.fromisoformat(end_date))
+                
+            if where_clauses:
+                query += " WHERE " + " AND ".join(where_clauses)
+            
+            query += " GROUP BY bucket ORDER BY bucket ASC"
+            
+            print(f"DEBUG: Executing Aggregated SQL: {query}", flush=True)
+            rows = await conn.fetch(query, *params)
+            
+            return [
+                {
+                    "time": row["bucket"].isoformat(), 
+                    "temperature": row["temperature"], 
+                    "humidity": row["humidity"], 
+                    "co2": row["co2"]
+                } for row in rows
+            ]  
+        else:
+            print("DEBUG: Performing RAW SELECT (Realtime)")
+            query = """
+                SELECT time, temperature, humidity, co2 
+                FROM sensor_metrics 
+                ORDER BY time DESC LIMIT $1
+            """
+            rows = await conn.fetch(query, limit)
+            rows = list(reversed(rows))
+
+    return [dict(row) for row in rows]
 
 @app.websocket("/ws")
 async def websocket_endpoint(websocket: WebSocket):

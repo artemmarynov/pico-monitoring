@@ -49,15 +49,32 @@ const LineChart = ({ title, labels, datasets }) => {
         borderWidth: 1
       }
     },
+    responsive: true,
+    maintainAspectRatio: false,
     scales: {
       y: {
-        grid: { color: '#374151' },
-        ticks: { color: '#9ca3af' }
+        type: 'linear',
+        position: 'left',
+        suggestedMin: 15,
+        suggestedMax: 30,
+        grid: { color: '#2d2d2d' },
+        ticks: { color: '#9ca3af' },
+        title: { display: true, text: 'Temp / Hum', color: '#9ca3af' }
+      },
+      y1: {
+        type: 'linear',
+        position: 'right',
+        grid: { drawOnChartArea: false },
+        ticks: { color: '#ffc94d' },
+        title: { display: true, text: 'CO2 (ppm)', color: '#ffc94d' }
       },
       x: {
         grid: { display: false },
-        ticks: { color: '#9ca3af' }
+        ticks: { color: '#9ca3af', maxRotation: 45, minRotation: 45 }
       }
+    },
+    plugins: {
+      legend: { display: false }
     }
   };
 

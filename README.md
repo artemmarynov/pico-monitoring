@@ -139,6 +139,8 @@ docker compose up -d --build
 | **Grafana**               | [http://localhost:3001](http://localhost:3001)                 |
 | **mqtt-exporter metrics** | [http://localhost:9641/metrics](http://localhost:9641/metrics) |
 | **PostgreSQL**            | `localhost:5432` (DB: `metrics`, user: `admin`, password: admin) |
+| **Vite server (Front-end)** | [http://localhost:5173](http://localhost:5173) |
+| **FastAPI backend** | [http://localhost:8000/docs](http://localhost:8000/docs) |
 ---
 🧪 **Testing MQTT Messaging**
 
