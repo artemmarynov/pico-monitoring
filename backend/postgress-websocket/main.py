@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi import Query
 from datetime import datetime
 from typing import Optional
+
 # CONFIGURATION
 MQTT_BROKER = os.getenv("MQTT_BROKER", "mosquitto")
 
@@ -50,7 +51,7 @@ async def mqtt_bridge(app: FastAPI):
     while True:
         try:
             async with MQTTClient(MQTT_BROKER) as client:
-                await client.subscribe("pico/env")
+                await client.subscribe("artem/pico2wh/env")
                 async for message in client.messages:
                     data = json.loads(message.payload.decode()) # type: ignore
                     
