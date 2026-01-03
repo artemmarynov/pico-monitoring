@@ -89,6 +89,7 @@ function AdminPerformance() {
   };
 
   return (
+    
     <div style={{ padding: "20px", color: "#fff", width: "100%", maxWidth: "1600px", margin: "0 auto" }}>
       <h1 className="dashboard-title">Environmental Performance</h1>
 

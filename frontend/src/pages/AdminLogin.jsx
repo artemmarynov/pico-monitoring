@@ -7,7 +7,7 @@ function AdminLogin() {
 
   const handleLogin = () => {
     login();
-    navigate("/admin");
+    navigate("/admin/performance");
   };
 
   return (

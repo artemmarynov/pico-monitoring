@@ -7,12 +7,11 @@ function AdminSidebar() {
 
   const handleExit = () => {
     logout();
-    navigate("/admin/login");
+    navigate("/");
   };
 
   return (
     <aside className="admin-sidebar">
-      {/* АВАТАР */}
       <img
         src="../../public/admin_picture.png"
         alt="Admin avatar"
@@ -25,15 +24,6 @@ function AdminSidebar() {
       <button className="exit-btn" onClick={handleExit}>
         Exit
       </button>
-
-      <NavLink
-        to="/admin/models"
-        className={({ isActive }) =>
-          `menu-btn ${isActive ? "active" : ""}`
-        }
-      >
-        Models
-      </NavLink>
 
       <NavLink
         to="/admin/performance"
