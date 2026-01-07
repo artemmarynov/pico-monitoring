@@ -4,7 +4,6 @@ import { useAuth } from "../context/AuthContext";
 function Header() {
   const { isAdmin } = useAuth();
 
-  // Decide where Home should lead
   const homePath = isAdmin ? "/admin/performance" : "/admin/login";
 
   return (

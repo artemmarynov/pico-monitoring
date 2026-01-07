@@ -42,7 +42,6 @@ function autoRange(values, padRatio = 0.08) {
   let max = Math.max(...nums);
 
   if (min === max) {
-    // чтобы шкала не была плоской
     const pad = Math.max(1, Math.abs(min) * padRatio);
     return { min: min - pad, max: max + pad };
   }
@@ -52,23 +51,19 @@ function autoRange(values, padRatio = 0.08) {
 }
 
 const LineChart = ({ title, labels = [], datasets = [] }) => {
-  // 1) Жёстко привязываем оси:
-  // - CO2 -> y1 (правая ось)
-  // - Temp/Hum -> y (левая ось)
+
   const normalizedDatasets = useMemo(() => {
     return (datasets || []).map((ds) => {
       const co2 = isCo2Dataset(ds);
       return {
         ...ds,
         yAxisID: co2 ? "y1" : "y",
-        // по желанию можно уменьшить точки, чтобы график был чище
         pointRadius: ds.pointRadius ?? 2,
         tension: ds.tension ?? 0.3,
       };
     });
   }, [datasets]);
 
-  // 2) Автодиапазоны, чтобы шкалы были адекватные
   const tempHumValues = useMemo(() => {
     const arr = [];
     for (const ds of normalizedDatasets) {
@@ -123,7 +118,6 @@ const LineChart = ({ title, labels = [], datasets = [] }) => {
           grid: { color: "#2d2d2d" },
           ticks: { color: "#9ca3af" },
           title: { display: true, text: "Temp / Hum", color: "#9ca3af" },
-          // если есть значения — выставим min/max, чтобы не “прилипало” к 0
           ...(yRange.min !== undefined ? { min: yRange.min } : {}),
           ...(yRange.max !== undefined ? { max: yRange.max } : {}),
         },

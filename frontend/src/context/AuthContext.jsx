@@ -23,7 +23,7 @@ export function AuthProvider({ children }) {
   }
 
   useEffect(() => {
-    refresh(); // restore session on first load
+    refresh();
   }, []);
 
   async function login(email, password) {

@@ -5,7 +5,7 @@ import { useAuth } from "../context/AuthContext";
 function AdminLayout() {
   const { loading, isAdmin } = useAuth();
 
-  if (loading) return null; // or a loader component
+  if (loading) return null;
   if (!isAdmin) return <Navigate to="/admin/login" replace />;
 
   return (
