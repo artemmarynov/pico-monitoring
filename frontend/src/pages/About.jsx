@@ -1,56 +1,29 @@
 function About() {
   return (
     <main className="about">
-      <div className="about-container">
-        
-        {/* LEFT */}
-        <section className="about-story">
-          <h1>Our Story</h1>
+      <div className="about-page">
+        <section className="our-story">
+          <h2>Our Story</h2>
+
           <p>
-            We are a team of students and audio-technology enthusiasts who noticed
-            a growing problem: it is becoming harder for people to understand
-            whether a voice recording is real or artificially generated.
+            The product was created for an IoT course at TUKE by Artem Marynov and
+            Yehor Voronovskyi.
           </p>
 
           <p>
-            We combined our experience in machine learning, speech processing,
-            and signal analysis to build a system capable of detecting signs of
-            artificial generation, manipulation, and inconsistencies in voice recordings.
+            The goal of the project is to monitor key environmental indicators such as
+            temperature, humidity, and CO₂ levels in classrooms.
           </p>
 
-          <p>
-            Today, we continue improving our models, expanding our datasets,
-            and making technology honest, transparent, and helpful.
-          </p>
+          <p>The following improvements could be considered in future iterations:</p>
+
+          <ul className="future-steps">
+            <li>Enable administrator registration without direct involvement from existing admins.</li>
+            <li>Introduce real-time notifications when environmental indicators reach unhealthy levels.</li>
+            <li>Integrate the system with automation technologies such as smart windows or smart AC.</li>
+            <li>Make the contact form fully functionable.</li>
+          </ul>
         </section>
-
-        {/* RIGHT */}
-        <section className="about-right">
-          <div className="about-image" />
-
-          <div className="stats">
-            <div className="stat">
-              <strong>100000</strong>
-              <span>Audio files analyzed</span>
-            </div>
-
-            <div className="stat">
-              <strong>3</strong>
-              <span>AI models used</span>
-            </div>
-
-            <div className="stat">
-              <strong>20000</strong>
-              <span>Fake audios detected</span>
-            </div>
-
-            <div className="stat">
-              <strong>4</strong>
-              <span>Years of experience</span>
-            </div>
-          </div>
-        </section>
-
       </div>
     </main>
   );

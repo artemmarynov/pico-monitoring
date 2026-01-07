@@ -66,11 +66,10 @@ function Contacts() {
                   />
                 </label>
               </div>
-
-              <label className="field">
+              <label className="field field-wide">
                 <span className="field-label">EMAIL</span>
                 <input
-                  className="input input-wide"
+                  className="input"
                   name="email"
                   value={form.email}
                   onChange={onChange}
@@ -113,7 +112,7 @@ function Contacts() {
                   <span className="info-icon">📞</span>
                   <div>
                     <div className="info-label">PHONE</div>
-                    <div className="info-value">+421 965 785 544</div>
+                    <div className="info-value">+421 904 073 553</div>
                   </div>
                 </div>
 
@@ -129,7 +128,9 @@ function Contacts() {
                   <span className="info-icon">✉️</span>
                   <div>
                     <div className="info-label">EMAIL</div>
-                    <div className="info-value">contact@deepvoicecheck.com</div>
+                    <div className="info-value">yehor.voronovskyi@gmail.com</div>
+                    <div className="info-value">artem.marynov@gmail.com</div>
+
                   </div>
                 </div>
               </div>

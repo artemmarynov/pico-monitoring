@@ -1,150 +1,182 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback } from "react";
 import LineChart from "../components/LineChart";
 
-function AdminPerformance() {
+function MetricToggle({ active, color, label, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`metric-toggle ${active ? "is-active" : ""}`}
+      style={{ "--metric-color": color }}
+      aria-pressed={active}
+      title={label}
+    >
+      {label}
+    </button>
+  );
+}
+
+export default function AdminPerformance() {
   const [rawData, setRawData] = useState([]);
   const [loading, setLoading] = useState(true);
-  
-  const [mode, setMode] = useState('realtime'); 
-  const [visibleMetrics, setVisibleMetrics] = useState({ temp: true, hum: true, co2: true });
-  
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+
+  const [mode, setMode] = useState("realtime");
+  const [visibleMetrics, setVisibleMetrics] = useState({
+    temp: true,
+    hum: true,
+    co2: true,
+  });
+
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
   const [limit, setLimit] = useState(100);
 
   const fetchData = useCallback(async () => {
     try {
+      setLoading(true);
+
       let url = `http://localhost:8000/history?limit=${limit}`;
-      
-      if (mode !== 'realtime') {
-        url += `&aggregate=${mode}`;
-      }
-      
+
+      if (mode !== "realtime") url += `&aggregate=${mode}`;
       if (startDate) url += `&start_date=${startDate}T00:00:00`;
       if (endDate) url += `&end_date=${endDate}T23:59:59`;
 
-      const response = await fetch(url);
+      const response = await fetch(url, { credentials: "include" });
       const json = await response.json();
-      setRawData(json);
-      setLoading(false);
+
+      setRawData(Array.isArray(json) ? json : []);
     } catch (err) {
       console.error("Fetch error:", err);
+      setRawData([]);
+    } finally {
       setLoading(false);
     }
   }, [mode, limit, startDate, endDate]);
 
   useEffect(() => {
     fetchData();
-    // Refresh every 10 secs
-    if (mode === 'realtime' || mode === 'minute') {
+
+    // Refresh every 10s for realtime/minute modes
+    if (mode === "realtime" || mode === "minute") {
       const interval = setInterval(fetchData, 10000);
       return () => clearInterval(interval);
     }
   }, [fetchData, mode]);
 
-  const chartData = {
-    labels: rawData.map(item => {
-      const d = new Date(item.time);
-      if (mode === 'day' || mode === 'month') {
-        return d.toLocaleDateString([], { day: '2-digit', month: '2-digit' });
-      }
-      return d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-    }),
-    datasets: [
-      visibleMetrics.temp && {
-        label: "Temp (°C)",
-        data: rawData.map(item => item.temperature),
-        borderColor: "#ff5b7f",
-        backgroundColor: "rgba(255, 91, 127, 0.1)",
-        yAxisID: 'y',
-        fill: true,
-        tension: 0.4,
-      },
-      visibleMetrics.hum && {
-        label: "Hum (%)",
-        data: rawData.map(item => item.humidity),
-        borderColor: "#4fa3ff",
-        backgroundColor: "rgba(79, 163, 255, 0.1)",
-        yAxisID: 'y',
-        fill: true,
-        tension: 0.4,
-      },
-      visibleMetrics.co2 && {
-        label: "CO2 (ppm)",
-        data: rawData.map(item => item.co2),
-        borderColor: "#ffc94d",
-        backgroundColor: "rgba(255, 201, 77, 0.1)",
-        yAxisID: 'y1',
-        fill: true,
-        tension: 0.4,
-      }
-    ].filter(Boolean)
+  const toggleMetric = (key) => {
+    setVisibleMetrics((prev) => ({ ...prev, [key]: !prev[key] }));
   };
 
   const handleReset = () => {
-    setStartDate('');
-    setEndDate('');
+    setStartDate("");
+    setEndDate("");
     setLimit(100);
-    setMode('realtime');
+    setMode("realtime");
   };
 
+  const labels = rawData.map((item) => {
+    const d = new Date(item.time);
+    if (mode === "day" || mode === "month") {
+      return d.toLocaleDateString([], { day: "2-digit", month: "2-digit" });
+    }
+    return d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+  });
+
+  const datasets = [
+    visibleMetrics.temp && {
+      label: "Temp (°C)",
+      data: rawData.map((i) => i.temperature),
+      borderColor: "#ff5c7a",
+      backgroundColor: "rgba(255, 92, 122, 0.18)",
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+    },
+    visibleMetrics.hum && {
+      label: "Hum (%)",
+      data: rawData.map((i) => i.humidity),
+      borderColor: "#4da3ff",
+      backgroundColor: "rgba(77, 163, 255, 0.18)",
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+    },
+    visibleMetrics.co2 && {
+      label: "CO₂ (ppm)",
+      data: rawData.map((i) => i.co2),
+      borderColor: "#f3c74f",
+      backgroundColor: "rgba(243, 199, 79, 0.18)",
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+    },
+  ].filter(Boolean);
+
+  const chartData = { labels, datasets };
+
   return (
-    
-    <div style={{ padding: "20px", color: "#fff", width: "100%", maxWidth: "1600px", margin: "0 auto" }}>
+    <div className="perf-page">
       <h1 className="dashboard-title">Environmental Performance</h1>
 
-      {/* Control panel */}
-      <div style={{ 
-        background: '#252525', 
-        padding: '20px', 
-        borderRadius: '12px', 
-        display: 'flex', 
-        gap: '20px', 
-        alignItems: 'center', 
-        flexWrap: 'wrap',
-        marginBottom: '20px',
-        border: '1px solid #333'
-      }}>
-        
-        {/* Aggregation mode switch */}
-        <div style={{ display: 'flex', background: '#1a1a1a', borderRadius: '8px', padding: '4px' }}>
-          {['realtime', 'minute', 'hour', 'day', 'month'].map((m) => (
-            <button 
+      <div className="perf-controls">
+        <div className="mode-switch" role="tablist" aria-label="Aggregation mode">
+          {["realtime", "minute", "hour", "day", "month"].map((m) => (
+            <button
               key={m}
+              type="button"
+              className={`mode-btn ${mode === m ? "is-active" : ""}`}
               onClick={() => setMode(m)}
-              style={{
-                ...modeBtnStyle,
-                background: mode === m ? '#4fa3ff' : 'transparent',
-                color: mode === m ? '#fff' : '#888'
-              }}
             >
               {m.charAt(0).toUpperCase() + m.slice(1)}
             </button>
           ))}
         </div>
 
-        {/* Calendars */}
-        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} style={inputStyle} />
-          <span style={{color: '#555'}}>—</span>
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} style={inputStyle} />
+        <div className="perf-field">
+          <input
+            className="perf-input"
+            type="date"
+            value={startDate}
+            onChange={(e) => setStartDate(e.target.value)}
+          />
+          <span className="perf-sep">—</span>
+          <input
+            className="perf-input"
+            type="date"
+            value={endDate}
+            onChange={(e) => setEndDate(e.target.value)}
+          />
         </div>
 
-        {/* Reset */}
-        <button onClick={handleReset} style={{...modeBtnStyle, background: '#eb4d4b', color: '#fff'}}>Reset All</button>
+        <button type="button" className="perf-reset" onClick={handleReset}>
+          Reset All
+        </button>
 
-        {/* Metrics switcher */}
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: '10px' }}>
-          <MetricToggle active={visibleMetrics.temp} color="#ff5b7f" label="T" onClick={() => setVisibleMetrics(p => ({...p, temp: !p.temp}))} />
-          <MetricToggle active={visibleMetrics.hum} color="#4fa3ff" label="H" onClick={() => setVisibleMetrics(p => ({...p, hum: !p.hum}))} />
-          <MetricToggle active={visibleMetrics.co2} color="#ffc94d" label="C" onClick={() => setVisibleMetrics(p => ({...p, co2: !p.co2}))} />
+        <div className="metric-toggles" aria-label="Metric visibility">
+          <MetricToggle
+            active={visibleMetrics.temp}
+            color="#ff5c7a"
+            label="T"
+            onClick={() => toggleMetric("temp")}
+          />
+          <MetricToggle
+            active={visibleMetrics.hum}
+            color="#4da3ff"
+            label="H"
+            onClick={() => toggleMetric("hum")}
+          />
+          <MetricToggle
+            active={visibleMetrics.co2}
+            color="#f3c74f"
+            label="C"
+            onClick={() => toggleMetric("co2")}
+          />
         </div>
       </div>
 
-      {/* GRAPH */}
-      <div style={{ background: "#1a1a1a", padding: "20px", borderRadius: "15px", height: '600px', width: '100%', border: '1px solid #333' }}>
+      <div className="perf-graph">
         {loading ? (
-          <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>Loading data...</div>
+          <div className="perf-loading">Loading data...</div>
         ) : (
           <LineChart key={mode} labels={chartData.labels} datasets={chartData.datasets} />
         )}
@@ -152,38 +184,3 @@ function AdminPerformance() {
     </div>
   );
 }
-
-// Styles
-const modeBtnStyle = {
-  padding: '8px 16px',
-  border: 'none',
-  borderRadius: '6px',
-  cursor: 'pointer',
-  fontSize: '13px',
-  transition: '0.2s',
-  fontWeight: '500'
-};
-
-const inputStyle = {
-  background: '#1a1a1a',
-  color: '#fff',
-  border: '1px solid #444',
-  padding: '8px',
-  borderRadius: '6px',
-  outline: 'none'
-};
-
-const MetricToggle = ({ active, color, label, onClick }) => (
-  <button 
-    onClick={onClick}
-    style={{
-      width: '35px', height: '35px', borderRadius: '50%', border: `2px solid ${color}`,
-      background: active ? color : 'transparent', color: active ? '#fff' : color,
-      cursor: 'pointer', fontWeight: 'bold', transition: '0.2s'
-    }}
-  >
-    {label}
-  </button>
-);
-
-export default AdminPerformance;

@@ -1,27 +1,24 @@
 import { NavLink } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 
-function Header({ onHomeClick }) {
+function Header() {
   const { isAdmin } = useAuth();
+
+  // Decide where Home should lead
+  const homePath = isAdmin ? "/admin/performance" : "/admin/login";
 
   return (
     <header className="header">
       <div className="header-inner">
         <div className="logo">
-          <div className="logo-circle">df</div>
-          <span>deepfake.ai</span>
+          <div className="logo-circle">cm</div>
+          <span>Classroom monitoring</span>
         </div>
 
         <nav className="nav">
-          {isAdmin && (
-            <NavLink
-              to="/admin/performance"
-              className="nav-btn"
-              onClick={onHomeClick}
-            >
-              Home
-            </NavLink>
-          )}
+          <NavLink to={homePath} className="nav-btn">
+            Home
+          </NavLink>
 
           <NavLink to="/about" className="nav-btn">
             About us

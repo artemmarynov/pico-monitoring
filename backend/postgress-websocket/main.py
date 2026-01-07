@@ -7,9 +7,13 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from aiomqtt import Client as MQTTClient
 from datetime import datetime, timezone
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi import Query
 from datetime import datetime
 from typing import Optional
+import jwt
+from datetime import datetime, timedelta, timezone
+from fastapi import HTTPException, Response, Cookie, Depends
+from passlib.context import CryptContext
+
 
 # CONFIGURATION
 MQTT_BROKER = os.getenv("MQTT_BROKER", "mosquitto")
@@ -93,6 +97,19 @@ async def lifespan(app: FastAPI):
         """)
         print("DEBUG: sensor_metrics table ensured")
 
+    async with app.state.pool.acquire() as conn:
+        await conn.execute("""
+            CREATE TABLE IF NOT EXISTS users (
+                id BIGSERIAL PRIMARY KEY,
+                email TEXT UNIQUE NOT NULL,
+                password_hash TEXT NOT NULL,
+                role TEXT NOT NULL DEFAULT 'USER',
+                is_active BOOLEAN NOT NULL DEFAULT TRUE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+            );
+        """)
+        print("DEBUG: users table ensured")
+
     # Запускаем MQTT мост фоном
     mqtt_task = asyncio.create_task(mqtt_bridge(app))
 
@@ -106,12 +123,11 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["http://localhost:5173", "http://localhost:3000"],  # твой React origin(ы)
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 # --- API ENDPOINTS ---
 
 @app.get("/history")
@@ -183,3 +199,145 @@ async def websocket_endpoint(websocket: WebSocket):
         manager.disconnect(websocket)
 
 
+
+pwd_context = CryptContext(schemes=["argon2"], deprecated="auto")
+
+JWT_SECRET = os.getenv("JWT_SECRET", "CHANGE_ME_LONG_RANDOM_SECRET")
+JWT_ALG = "HS256"
+ACCESS_TOKEN_MINUTES = int(os.getenv("ACCESS_TOKEN_MINUTES", "60"))
+COOKIE_NAME = "access_token"
+
+def hash_password(p: str) -> str:
+    return pwd_context.hash(p)
+
+def verify_password(p: str, hashed: str) -> bool:
+    return pwd_context.verify(p, hashed)
+
+def create_access_token(user_id: int, role: str) -> str:
+    now = datetime.now(timezone.utc)
+    payload = {
+        "sub": str(user_id),
+        "role": role,
+        "iat": int(now.timestamp()),
+        "exp": int((now + timedelta(minutes=ACCESS_TOKEN_MINUTES)).timestamp()),
+    }
+    return jwt.encode(payload, JWT_SECRET, algorithm=JWT_ALG)
+
+def decode_token(token: str) -> dict:
+    try:
+        return jwt.decode(token, JWT_SECRET, algorithms=[JWT_ALG])
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Session expired")
+    except jwt.InvalidTokenError:
+        raise HTTPException(status_code=401, detail="Invalid token")
+
+
+# --- dependencies ---
+async def get_current_user(token: str | None = Cookie(default=None, alias=COOKIE_NAME)):
+    if not token:
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    return decode_token(token)
+
+def require_admin(user_claims: dict = Depends(get_current_user)) -> dict:
+    if user_claims.get("role") != "ADMIN":
+        raise HTTPException(status_code=403, detail="Admin only")
+    return user_claims
+
+from pydantic import BaseModel, EmailStr
+
+class LoginReq(BaseModel):
+    email: EmailStr
+    password: str
+
+@app.post("/auth/login")
+async def auth_login(payload: LoginReq, response: Response):
+    async with app.state.pool.acquire() as conn:
+        row = await conn.fetchrow(
+            "SELECT id, password_hash, role, is_active FROM users WHERE email=$1",
+            str(payload.email)
+        )
+
+    if not row or not row["is_active"]:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    if not verify_password(payload.password, row["password_hash"]):
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_access_token(row["id"], row["role"])
+
+    response.set_cookie(
+        key=COOKIE_NAME,
+        value=token,
+        httponly=True,
+        secure=False,
+        samesite="lax",
+        path="/",
+        max_age=ACCESS_TOKEN_MINUTES * 60,
+    )
+    return {"ok": True, "role": row["role"]}
+
+@app.post("/auth/logout")
+async def auth_logout(response: Response):
+    response.delete_cookie(key=COOKIE_NAME, path="/")
+    return {"ok": True}
+
+@app.get("/auth/me")
+async def auth_me(user_claims: dict = Depends(get_current_user)):
+    return {"user_id": user_claims["sub"], "role": user_claims["role"]}
+
+@app.get("/admin/ping")
+async def admin_ping(_: dict = Depends(require_admin)):
+    return {"ok": True, "msg": "Admin access granted"}
+
+class BootstrapAdminReq(BaseModel):
+    email: EmailStr
+    password: str
+    secret: str
+
+BOOTSTRAP_SECRET = os.getenv("BOOTSTRAP_SECRET", "")
+
+@app.post("/admin/bootstrap")
+async def bootstrap_admin(payload: BootstrapAdminReq):
+    if not BOOTSTRAP_SECRET or payload.secret != BOOTSTRAP_SECRET:
+        raise HTTPException(status_code=403, detail="Forbidden")
+
+    pw_hash = hash_password(payload.password)
+
+    async with app.state.pool.acquire() as conn:
+        existing = await conn.fetchval("SELECT 1 FROM users WHERE email=$1", str(payload.email))
+        if existing:
+            raise HTTPException(status_code=409, detail="User already exists")
+
+        await conn.execute(
+            "INSERT INTO users(email, password_hash, role, is_active) VALUES ($1, $2, 'ADMIN', TRUE)",
+            str(payload.email),
+            pw_hash
+        )
+    return {"ok": True}
+
+
+from pydantic import BaseModel, EmailStr
+
+class CreateAdminReq(BaseModel):
+    email: EmailStr
+    password: str
+
+@app.post("/admin/create")
+async def create_admin(payload: CreateAdminReq, _: dict = Depends(require_admin)):
+    pw_hash = hash_password(payload.password)
+
+    async with app.state.pool.acquire() as conn:
+        exists = await conn.fetchval("SELECT 1 FROM users WHERE email=$1", str(payload.email))
+        if exists:
+            raise HTTPException(status_code=409, detail="User already exists")
+
+        await conn.execute(
+            """
+            INSERT INTO users (email, password_hash, role, is_active)
+            VALUES ($1, $2, 'ADMIN', TRUE)
+            """,
+            str(payload.email),
+            pw_hash
+        )
+
+    return {"ok": True}

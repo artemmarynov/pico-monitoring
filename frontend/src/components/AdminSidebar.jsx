@@ -19,7 +19,7 @@ function AdminSidebar() {
         onClick={() => navigate("/admin")}
       />
 
-      <h3>Hello Martin!</h3>
+      <h3>Hello Admin!</h3>
 
       <button className="exit-btn" onClick={handleExit}>
         Exit
@@ -35,12 +35,12 @@ function AdminSidebar() {
       </NavLink>
 
       <NavLink
-        to="/admin/misk"
+        to="/admin/misc"
         className={({ isActive }) =>
           `menu-btn ${isActive ? "active" : ""}`
         }
       >
-        Misk
+        Misс
       </NavLink>
     </aside>
   );

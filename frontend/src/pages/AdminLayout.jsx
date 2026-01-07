@@ -1,7 +1,13 @@
 import AdminSidebar from "../components/AdminSidebar";
-import { Outlet } from "react-router-dom";
+import { Outlet, Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
 
 function AdminLayout() {
+  const { loading, isAdmin } = useAuth();
+
+  if (loading) return null; // or a loader component
+  if (!isAdmin) return <Navigate to="/admin/login" replace />;
+
   return (
     <main className="admin-page">
       <AdminSidebar />
