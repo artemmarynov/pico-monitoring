@@ -861,19 +861,18 @@ a:hover { opacity: 0.9; }
 
 /* Контейнер страницы */
 .about-page {
-  min-height: calc(100vh - 72px); /* высота экрана минус хедер */
+  min-height: calc(100vh - 72px);
   display: flex;
-  justify-content: center;       /* центр по горизонтали */
-  align-items: flex-start;       /* не по центру вертикали */
-  padding-top: 60px;             /* отступ от хедера */
+  justify-content: center;
+  align-items: flex-start;
+  padding-top: 60px;         
   padding-left: 16px;
   padding-right: 16px;
 }
 
-/* Карточка Our Story */
 .our-story {
   width: 100%;
-  max-width: 720px;              /* аккуратная ширина как на скрине */
+  max-width: 720px;
   background: radial-gradient(
     circle at top,
     rgba(30, 41, 59, 0.9),
@@ -885,7 +884,6 @@ a:hover { opacity: 0.9; }
   box-shadow: 0 20px 50px rgba(0, 0, 0, 0.45);
 }
 
-/* Заголовок */
 .our-story h2 {
   margin: 0 0 18px;
   font-size: 28px;
@@ -893,7 +891,6 @@ a:hover { opacity: 0.9; }
   color: #ffffff;
 }
 
-/* Текст */
 .our-story p {
   margin-bottom: 14px;
   font-size: 15px;
@@ -901,7 +898,6 @@ a:hover { opacity: 0.9; }
   color: #cbd5e1;
 }
 
-/* Список */
 .future-steps {
   margin-top: 16px;
   padding-left: 18px;
@@ -914,7 +910,6 @@ a:hover { opacity: 0.9; }
   color: #e5e7eb;
 }
 
-/* Адаптив */
 @media (max-width: 640px) {
   .our-story {
     padding: 22px;
@@ -942,4 +937,17 @@ a:hover { opacity: 0.9; }
 
 .eye-btn:hover {
   color: #ffffff;
+}
+
+
+.perf-graph { position: relative; }
+
+.perf-refreshing{
+  position: absolute;
+  top: 8px;
+  left: 12px;
+  z-index: 5;
+  font-size: 13px;
+  color: #9ca3af;
+  pointer-events: none;
 }
