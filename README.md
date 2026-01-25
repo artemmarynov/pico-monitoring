@@ -103,20 +103,31 @@ Python microservice that:
 git clone https://github.com/artemmarynov/pico-monitoring.git
 cd pico-monitoring
 ```
-2️⃣ Create .env
-```bash
-cp .env.example .env
-```
+2️⃣ Create `.env`
 
+Create a file named `.env` manually in the project root and fill it with the required environment variables.
+
+Example `.env` file structure:
+```env
+NOTIFIER_APPRISE_URL=tgram://YOUR_TELEGRAM_BOT_TOKEN/YOUR_CHAT_ID
+PROM_URL=http://prometheus:9090
+PG_USER=postgres
+PG_PASSWORD=admin
+PG_DB=metrics
+PG_HOST=postgres
+PG_PORT=5432
+MQTT_BROKER=mosquitto
+EXPORT_INTERVAL=5
+JWT_SECRET=YOUR_JWT_SECRET
+ACCESS_TOKEN_MINUTES=60
+BOOTSTRAP_SECRET=YOUR_BOOTSTRAP_SECRET
+```
 Access the front-end by that link:
 http://localhost:5173
 
 Backend:
 http://localhost:8000/docs
 
-Then edit the file and set:
-```ini
-NOTIFIER_APPRISE_URL=tgram://YOUR_BOT_TOKEN/YOUR_CHAT_ID
 # Prometheus → Postgres exporter settings
 PROM_URL=http://prometheus:9090
 PG_HOST=postgres
@@ -124,7 +135,7 @@ PG_DB=metrics
 PG_USER=admin
 PG_PASSWORD=admin
 EXPORT_INTERVAL=10
-```
+
 3️⃣ Launch the full stack
 ```bash
 docker compose up -d --build
