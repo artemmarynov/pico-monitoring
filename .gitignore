@@ -7,7 +7,7 @@
 /backend/pico/secrets.py
 /backend/analysis.ipynb
 /backend/.env.example
-
+.env
 # Logs
 logs
 *.log

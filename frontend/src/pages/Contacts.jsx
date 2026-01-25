@@ -169,7 +169,7 @@ function Contacts() {
             title="OpenStreetMap"
             className="map-frame"
             loading="lazy"
-            src="https://www.openstreetmap.org/export/embed.html?bbox=21.240%2C48.716%2C21.265%2C48.724&layer=mapnik&marker=48.719%2C21.251"
+            src="https://www.openstreetmap.org/export/embed.html?bbox=21.240%2C48.716%2C21.265%2C48.724&layer=mapnik&marker=48.730519%2C21.245496"
           />
         </section>
       </div>
