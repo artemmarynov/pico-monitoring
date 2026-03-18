@@ -8,7 +8,7 @@ from mqtt import connect_mqtt
 from rtc1302 import sync_time
 from bh1750 import read_lux_once
 from mh19 import read_co2_once
-from dht22 import read_temperature_once, read_humidity_once
+from dht22 import read_dht_once, wait_for_first_valid_read
 
 SLEEP_SEC = 10
 STATE_CONNECTING_WIFI = "connecting_wifi"
@@ -26,15 +26,18 @@ def do_measurement():
 
     co2 = read_co2_once()
     lux = read_lux_once()
-    temp = read_temperature_once()
-    hum = read_humidity_once()
+    temp, hum = read_dht_once()
+    if temp is None or hum is None:
+        print("Skipping publish: DHT22 not ready yet")
+        return
 
     payload = ujson.dumps({
         "co2": co2,
         "lux": lux,
-        "temp": temp,
-        "hum": hum,
+        "temp": temp if temp is not None else -1,
+        "hum": hum if hum is not None else -1,
     })
+
     client.publish(secrets["TOPIC_SENSOR"], payload)
     print("Measurements:", payload)
 
@@ -54,6 +57,7 @@ while True:
                 broker=secrets["MQTT_BROKER"],
                 port=secrets["MQTT_PORT"],
             )
+            wait_for_first_valid_read(max_wait_sec=10)
             state = STATE_MEASUREMENT
 
         elif state == STATE_MEASUREMENT:
