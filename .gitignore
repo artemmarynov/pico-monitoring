@@ -8,6 +8,7 @@
 /backend/analysis.ipynb
 /backend/.env.example
 .env
+/backend/__pycache__/
 # Logs
 logs
 *.log
