@@ -54,22 +54,35 @@ def on_connect(client, userdata, flags, rc):
 def on_message(client, userdata, msg):
     logging.info(f"Message arrived | topic: {msg.topic} | payload: {msg.payload}")
     try:
-        payload = msg.payload.decode()
-        data = json.loads(payload)
+        data = json.loads(msg.payload.decode())
     except Exception as e:
         logging.error(f"Error parsing payload: {e}")
         return
 
-    co2 = data.get("co2")
-    lux = data.get("lux")
-    hum = data.get("hum")
-    temp = data.get("temp")
+    def to_float(x):
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return None
+
+    co2  = to_float(data.get("co2"))
+    lux  = to_float(data.get("lux"))
+    hum  = to_float(data.get("hum"))
+    temp = to_float(data.get("temp"))
 
     logging.info(f"Parsed data: co2={co2}, lux={lux}, hum={hum}, temp={temp}")
 
+    reasons = []
     if co2 is not None and co2 > 1500:
-        logging.warning(f"High CO₂ detected: {co2} ppm — sending notification!")
-        send_alert(co2, lux, temp, hum, data)
+        reasons.append(f"High CO₂: {co2} ppm")
+    if temp is not None and (temp > 25 or temp < 15):
+        reasons.append(f"Extreme temperature: {temp} °C")
+    if hum is not None and (hum > 70 or hum < 30):
+        reasons.append(f"Extreme humidity: {hum} %")
+
+    if reasons:
+        logging.warning(" | ".join(reasons))
+        send_alert(co2, lux, temp, hum, data, reasons)
 
 def on_disconnect(client, userdata, rc):
     logging.warning(f"Disconnected with rc={rc}. Reconnecting...")
@@ -79,12 +92,17 @@ def on_disconnect(client, userdata, rc):
     except Exception as e:
         logging.error(f"Reconnect failed: {e}")
 
-def send_alert(co2_value, lux_value, temp_value, hum_value, data):
+def send_alert(co2_value, lux_value, temp_value, hum_value, data, reasons):
+
+    reason_text = "\n".join(reasons)
+
     message = (
-        f"⚠️ High CO₂ detected: {co2_value} ppm\n"
-        f"💡 Lux: {lux_value}\n"
-        f"🌡️ Temp: {temp_value} °C\n"
-        f"💧 Humidity: {hum_value} %"
+        f"⚠️ Environment Alert\n"
+        f"{reason_text}\n\n"
+        f"CO₂: {co2_value} ppm\n"
+        f"Lux: {lux_value}\n"
+        f"Temp: {temp_value} °C\n"
+        f"Humidity: {hum_value} %"
     )
 
     logging.info(f"Alert message: {message}")
@@ -100,7 +118,7 @@ def send_alert(co2_value, lux_value, temp_value, hum_value, data):
             logging.error(f"Failed to send Apprise notification: {e}")
     else:
         logging.info("Apprise is not configured, skipping notification send.")
-
+        
 def main():
     client = connect_mqtt()
     logging.info("Starting MQTT loop")

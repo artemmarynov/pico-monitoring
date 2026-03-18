@@ -128,7 +128,6 @@ function Contacts() {
                   <span className="info-icon">✉️</span>
                   <div>
                     <div className="info-label">EMAIL</div>
-                    <div className="info-value">yehor.voronovskyi@gmail.com</div>
                     <div className="info-value">artem.marynov@gmail.com</div>
 
                   </div>

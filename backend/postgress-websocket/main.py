@@ -85,7 +85,7 @@ async def lifespan(app: FastAPI):
     # Create a connection pool at the start of the server
     app.state.pool = await asyncpg.create_pool(**DATABASE_CONFIG)    
 
-    # 2) Create table if not exists
+    # Create table if not exists
     async with app.state.pool.acquire() as conn:
         await conn.execute("""
             CREATE TABLE IF NOT EXISTS sensor_metrics (
@@ -111,7 +111,7 @@ async def lifespan(app: FastAPI):
         """)
         print("DEBUG: users table ensured")
 
-    # Запускаем MQTT мост фоном
+    # Start MQTT bridge task
     mqtt_task = asyncio.create_task(mqtt_bridge(app))
 
     yield
@@ -124,7 +124,7 @@ app = FastAPI(lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://13.61.186.202:5173"],  # твой React origin(ы)
+    allow_origins=["http://localhost:5173", "http://localhost:3000", "http://13.61.186.202:5173"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -155,16 +155,27 @@ async def get_history(
             where_clauses = []
 
             if start_date:
-                where_clauses.append(f"time >= ${len(params)+1}")
-                params.append(datetime.fromisoformat(start_date))
+                try:
+                    where_clauses.append(f"time >= ${len(params)+1}")
+                    params.append(datetime.fromisoformat(start_date))
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid start_date format, use ISO 8601")
             if end_date:
-                where_clauses.append(f"time <= ${len(params)+1}")
-                params.append(datetime.fromisoformat(end_date))
+                try:
+                    where_clauses.append(f"time <= ${len(params)+1}")
+                    params.append(datetime.fromisoformat(end_date))
+                except ValueError:
+                    raise HTTPException(status_code=400, detail="Invalid end_date format, use ISO 8601")
 
             if where_clauses:
                 query += " WHERE " + " AND ".join(where_clauses)
 
-            query += " GROUP BY bucket ORDER BY bucket ASC"
+            query += " GROUP BY bucket ORDER BY bucket DESC"
+
+            # apply limit to aggregated results
+            query += f" LIMIT ${len(params)+1}"
+            params.append(limit)
+
             rows = await conn.fetch(query, *params)
 
             return [
@@ -181,11 +192,10 @@ async def get_history(
             query = """
                 SELECT time, temperature, humidity, co2, lighting
                 FROM sensor_metrics
-                ORDER BY time DESC
+                ORDER BY time ASC
                 LIMIT $1
             """
             rows = await conn.fetch(query, limit)
-            rows = list(reversed(rows))
 
     return [dict(row) for row in rows]
 

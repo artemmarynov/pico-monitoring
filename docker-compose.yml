@@ -14,6 +14,7 @@ services:
       - /app/node_modules
     environment:
       - CHOKIDAR_USEPOLLING=true
+      - VITE_API_BASE=${VITE_API_BASE}
 
   # --- BACKEND (FastAPI) ---
   fastapi:
@@ -96,7 +97,7 @@ services:
     environment:
       - NOTIFIER_BROKER=mosquitto
       - NOTIFIER_PORT=1883
-      - NOTIFIER_BASE_TOPIC=pico/env
+      - NOTIFIER_BASE_TOPIC=artem/pico2wh/env
       - NOTIFIER_APPRISE_URL=${NOTIFIER_APPRISE_URL}
     depends_on:
       - mosquitto
@@ -108,9 +109,26 @@ services:
     networks:
       - monitoring
 
+  grafana:
+    image: grafana/grafana-oss:latest
+    container_name: grafana
+    ports:
+      - "3001:3000"
+    depends_on:
+      - prometheus
+      - postgres
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - grafana_data:/var/lib/grafana
+    networks:
+      - monitoring
+
 networks:
   monitoring:
     driver: bridge
 
 volumes:
   postgres_data:
+  grafana_data:

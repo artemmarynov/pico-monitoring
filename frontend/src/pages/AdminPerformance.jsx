@@ -16,7 +16,7 @@ function MetricToggle({ active, color, label, onClick }) {
   );
 }
 
-const API_BASE = "http://localhost:8000";
+const API_BASE = import.meta.env.VITE_API_BASE;
 const MAX_POINTS = 250;
 
 function formatLabel(d, mode) {
