@@ -34,3 +34,6 @@ dist-ssr
 *.sln
 *.sw?
 >>>>>>> 6fcea897c46f79b86d7010b167889fefba72329b
+
+Analýza_1_den_notebook.ipynb
+result_export.csv

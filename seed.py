@@ -13,7 +13,7 @@ DB_CONFIG = {
 
 async def seed_data():
     conn = await asyncpg.connect(**DB_CONFIG)
-    print("Подключено к БД. Начинаю генерацию данных...")
+    print("Connected to the database. Seeding data...")
 
 
     now = datetime.now()
@@ -37,7 +37,7 @@ async def seed_data():
     ''', records)
 
     await conn.close()
-    print(f"Готово! Добавлено {len(records)} записей.")
+    print(f"Done! Added {len(records)} records.")
 
 if __name__ == "__main__":
     asyncio.run(seed_data())
