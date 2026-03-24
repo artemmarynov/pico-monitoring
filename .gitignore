@@ -1,0 +1,41 @@
+# --- backend ---
+/backend/.idea/
+/backend/.env
+/backend/.venv/
+/backend/prometheus/data/
+.mpy-workbench/
+/backend/pico/secrets.py
+/backend/analysis.ipynb
+/backend/.env.example
+/backend/__pycache__/
+.env
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+.vscode/
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+>>>>>>> 6fcea897c46f79b86d7010b167889fefba72329b
+
+Analýza_1_den_notebook.ipynb
+result_export.csv
+README_eng.md
