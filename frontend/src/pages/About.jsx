@@ -6,8 +6,7 @@ function About() {
           <h2>Our Story</h2>
 
           <p>
-            The product was created for an IoT course at TUKE by Artem Marynov and
-            Yehor Voronovskyi.
+            The product was created for Bachelor's thesis at TUKE by Artem Marynov.
           </p>
 
           <p>

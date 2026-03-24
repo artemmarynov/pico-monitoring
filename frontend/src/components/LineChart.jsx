@@ -51,13 +51,11 @@ function autoRange(values, padRatio = 0.08) {
 }
 
 const LineChart = ({ title, labels = [], datasets = [] }) => {
-  // Важно: стабильные "id" датасетов (react-chartjs-2 будет понимать, что это те же линии)
   const normalizedDatasets = useMemo(() => {
     return (datasets || []).map((ds) => {
       const co2 = isCo2Dataset(ds);
       return {
         ...ds,
-        // это ключ для стабильности
         _id: ds._id || ds.label || Math.random().toString(36),
 
         yAxisID: co2 ? "y1" : "y",
@@ -90,8 +88,6 @@ const LineChart = ({ title, labels = [], datasets = [] }) => {
     () => ({
       responsive: true,
       maintainAspectRatio: false,
-
-      // ✅ ключевой фикс фликера: отключаем анимации при обновлениях
       animation: false,
       transitions: {
         active: { animation: { duration: 0 } },
@@ -100,7 +96,6 @@ const LineChart = ({ title, labels = [], datasets = [] }) => {
         hide: { animation: { duration: 0 } },
       },
 
-      // ✅ отключаем hover "подсветку" которая тоже может давать микро-перерисовку
       interaction: { mode: "nearest", intersect: false },
       hover: { animationDuration: 0 },
 
@@ -170,9 +165,7 @@ const LineChart = ({ title, labels = [], datasets = [] }) => {
       <Line
         options={options}
         data={data}
-        // ✅ говорит react-chartjs-2 как идентифицировать datasets
         datasetIdKey="_id"
-        // ✅ максимально “тихий” апдейт без анимации
         updateMode="none"
       />
     </div>

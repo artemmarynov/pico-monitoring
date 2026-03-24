@@ -97,9 +97,6 @@ export default function AdminPerformance() {
         newTemp.push(item.temperature ?? null);
         newHum.push(item.humidity ?? null);
         newCo2.push(item.co2 ?? null);
-
-        // lighting может приходить как lighting (из /history),
-        // а из mqtt приходит lux, но мы рисуем из /history => lighting
         newLight.push(item.lighting ?? null);
       }
 
