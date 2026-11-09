@@ -1,8 +1,0 @@
-fastapi
-uvicorn[standard]
-asyncpg
-aiomqtt
-pyjwt
-passlib
-argon2-cffi
-email-validator
