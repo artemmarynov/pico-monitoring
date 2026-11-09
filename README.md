@@ -1,230 +1,91 @@
-# 📡 Návrh aplikácie pre analýzu a monitorovanie dát z interiéru s využitím platformy Grafana
+# pico-monitoring
 
-IoT platforma na monitorovanie údajov o vnútornom prostredí pomocou **Raspberry Pi Pico 2 WH** (CO<sub>2</sub>, osvetlenie, teplota, vlhkosť), **MQTT**, **Promethea**, **PostgreSQL**, **Grafany**, **FastAPI backendu** a webového rozhrania v **Reacte**. Súčasťou riešenia je aj Python mikroslužba **Notifier** s podporou upozornení cez Telegram prostredníctvom knižnice Apprise.
+Indoor CO2, temperature, humidity and light monitoring with Raspberry Pi Pico,
+MQTT, FastAPI, PostgreSQL, React, Prometheus and Grafana.
 
-## Prehľad architektúry
+## Bachelor's thesis and results
 
-### Raspberry Pi Pico 2 WH
-Publikuje JSON správy so senzorickými údajmi (CO<sub>2</sub>, osvetlenie, teplota, vlhkosť) do MQTT témy `pico/env`:
+Developed by Artem Marynov as part of a bachelor's thesis at TUKE, this project
+demonstrates continuous collection, storage and visualisation of indoor environmental data.
+The Grafana results below show the recorded temperature, CO2, lighting and humidity
+over the measurement period.
 
-```json
-{"co2": 1234, "lux": 56.7, "temp": 24.3, "hum": 58.7}
-```
+![Thesis results: temperature, CO2, lighting and humidity in Grafana](results/data.png)
 
-**Firmvér pre Pico** ([`backend/pico/`](backend/pico/))
+CSV analysis plots are saved in [`results/`](results/):
+[time series](results/time_series.png), [distributions](results/distributions.png),
+[box plots](results/boxplots.png), [correlations](results/correlation_matrix.png),
+[daily averages](results/daily_averages.png), [hourly patterns](results/hourly_patterns.png)
+and [pairwise relationships](results/pairwise_relationships.png).
 
-MicroPython kód pre Raspberry Pi Pico sa nachádza v adresári `backend/pico/`:
-[`main.py`](backend/pico/main.py) – stavový automat: čítanie senzorov a publikovanie JSON správ do MQTT.  
-[`wifi.py`](backend/pico/wifi.py), [`mqtt.py`](backend/pico/mqtt.py), [`rtc1302.py`](backend/pico/rtc1302.py), [`bh1750.py`](backend/pico/bh1750.py), [`mh19.py`](backend/pico/mh19.py), [`dht22.py`](backend/pico/dht22.py) – pomocné moduly pre hardvér a konektivitu.  
-[`secrets.py.example`](backend/pico/secrets.py.example) – šablóna s Wi-Fi a MQTT prihlasovacími údajmi.
+## How it works
 
----
-### Služby
+Pico publishes JSON measurements to a public MQTT broker. A local Mosquitto bridge
+receives them; FastAPI validates, stores them in PostgreSQL and republishes cleaned
+values for mqtt-exporter. Prometheus scrapes those metrics; React polls history
+and sensor status every 10 seconds.
+Grafana automatically loads live/historical charts and its data sources.
+Notifier sends Apprise alerts for threshold violations, missing data and recovery.
 
-**Mosquitto** ([`backend/mosquitto/`](backend/mosquitto/))
+Measurements become stale after `SENSOR_STALE_SECONDS` (default: 60 seconds).
 
-Lokálny MQTT broker, ktorý prijíma správy zo senzorového uzla a sprístupňuje ich ostatným službám v systéme.
+## Quick start
 
----
-**mqtt-exporter** ([`backend/mqtt-exporter/`](backend/mqtt-exporter/))
+Requires Docker. Create `.env` in the project root:
 
-Odoberá tému `pico/env` a sprístupňuje prijaté hodnoty ako Prometheus metriky:
-- `pico_co2` – koncentrácia CO<sub>2</sub> (ppm)  
-- `pico_lux` – úroveň osvetlenia (lux)   
-- `pico_temp` – teplota (Celsius)
-- `pico_hum` – relatívna vlhkosť (%)  
-
----
-**Prometheus** ([`backend/prometheus/`](backend/prometheus/))
-
-Získava metriky z mqtt-exportera pravidelným scrapovaním.  
-Slúži ako zdroj metrík pre:
-Grafanu (vizualizácia v reálnom čase)
-a monitorovanie krátkodobých časových radov.
-
----
-**PostgreSQL + FastAPI backend** ([`backend/postgress-websocket/`](backend/postgress-websocket/))
-
-- PostgreSQL uchováva historické merania všetkých štyroch veličín: CO<sub>2</sub>, osvetlenie, teplota a vlhkosť.
-- FastAPI backend je Python služba, ktorá:
-  - odoberá správy z MQTT brokeru,
-  - dekóduje JSON payload,
-  - priamo zapisuje prijaté merania do tabuľky `sensor_metrics`,
-  - poskytuje REST API pre historické údaje,
-  - poskytuje WebSocket kanál pre zobrazovanie aktuálnych dát v reálnom čase.
-
-Výsledná tabuľka (vytvorená automaticky pri štarte backendu):
-```sql
-CREATE TABLE IF NOT EXISTS sensor_metrics (
-    time        TIMESTAMP,
-    temperature REAL,
-    humidity    REAL,
-    co2         REAL,
-    lighting    REAL
-);
-```
----
-**Notifier** ([`backend/notifier/`](backend/notifier/))
-
-Python mikroslužba, ktorá:
-- odoberá tému `pico/env`  
-- spracúva JSON MQTT payload  
-- vyhodnocuje prahové hodnoty  
-- odosiela upozornenia cez Apprise → Telegram  
-- publikuje stav služby cez MQTT (`pico/env/status`)  
----
-**Frontend** ([`frontend/`](frontend/))
-
-Webové rozhranie implementované pomocou React a Vite:
-- zobrazuje aktuálne merania v reálnom čase,
-- zobrazuje historické údaje cez REST API,
-- podporuje agregáciu údajov podľa intervalu,
-- komunikuje s backendom cez REST a WebSocket.
-
----
-**Grafana**
-
-- Vizualizuje údaje v dashboardoch
-- Môže zobrazovať:
-  - vývoj koncentrácie CO<sub>2</sub>
-  - intenzitu osvetlenia
-  - vývoj teploty
-  - zmeny vlhkosti
-  - kombinované časové grafy viacerých veličín
-- Využíva Prometheus pre realtime metriky a PostgreSQL pre historické dáta
-
----
-### Požiadavky
-
-- Docker  
-- Docker Compose v2   
-- MQTT zdroj dát (**Raspberry Pi Pico 2 WH** alebo iné zariadenie schopné publikovať MQTT správy)
----
-**Poznámky k OS**
-
-- Docker stack (Mosquitto, mqtt-exporter, Prometheus, Grafana, PostgreSQL, Notifier, FastAPI backend) je určený najmä pre **Linux** alebo **WSL**.
-- Nahratie firmvéru do Pico je možné z ľubovoľného operačného systému.
-- **mpy-workbench** funguje iba na **Windows**, preto ak ho používate vo VS Code, je vhodné pracovať s priečinkom `backend/pico/` na súborovom systéme Windows mimo WSL.
----
-### Rýchly štart
-
-## 1️⃣ Príprava projektu
-
-Projekt je súčasťou elektronickej prílohy záverečnej práce.  
-Po rozbalení archívu prejdite do koreňového adresára projektu, v ktorom sa nachádza súbor `docker-compose.yml`.
-
-## 2️⃣ Vytvorenie `.env`
-
-Skopírujte súbor `.env.example` na `.env` v koreňovom adresári projektu a doplňte požadované premenné prostredia.
-
-Príklad štruktúry súboru `.env`:
-```env
-NOTIFIER_APPRISE_URL=tgram://YOUR_TELEGRAM_BOT_TOKEN/YOUR_CHAT_ID
-PG_USER=postgres
-PG_PASSWORD=admin
+```dotenv
+PG_USER=pico
+PG_PASSWORD=<database-password>
 PG_DB=metrics
-PG_HOST=postgres
-PG_PORT=5432
-MQTT_BROKER=mosquitto
-JWT_SECRET=YOUR_JWT_SECRET
-ACCESS_TOKEN_MINUTES=60
-BOOTSTRAP_SECRET=YOUR_BOOTSTRAP_SECRET
+MQTT_TOPIC=<MQTT_TOPIC>
+MQTT_PASSWORD=<api-mqtt-password>
+NOTIFIER_PASSWORD=<notifier-mqtt-password>
+EXPORTER_PASSWORD=<exporter-mqtt-password>
+GRAFANA_ADMIN_PASSWORD=<grafana-admin-password>
+GRAFANA_DB_PASSWORD=<grafana-read-only-database-password>
+SENSOR_STALE_SECONDS=60
+NOTIFIER_APPRISE_URL=
 ```
-Prístup k frontendu:
-http://localhost:5173
 
-Backend:
-http://localhost:8000/docs
+Replace every `<...>`. Generate each secret separately with
+`python -c "import secrets; print(secrets.token_urlsafe(36))"`.
+For an existing Pico, set `MQTT_TOPIC` to its current topic; no firmware change is needed.
+Optional Telegram notifications: `NOTIFIER_APPRISE_URL=tgram://BOT_TOKEN/CHAT_ID`.
 
-## 3️⃣ Spustenie celého stacku
-```bash
+```sh
 docker compose up -d --build
 ```
----
-**Prehľad služieb**
 
-| Služba | URL / Adresa |
+| Interface | Local address |
 | --- | --- |
-| **Mosquitto** | `http://localhost:1883` |
-| **Prometheus** | [http://localhost:9091](http://localhost:9091) |
-| **Grafana** | [http://localhost:3001](http://localhost:3001) |
-| **Mqtt-exporter** | [http://localhost:9641/metrics](http://localhost:9641/metrics) |
-| **Notifier** | |
-| **PostgreSQL** | `localhost:5432` |
-| **Vite server (frontend)** | [http://localhost:5173](http://localhost:5173) |
-| **FastAPI backend** | [http://localhost:8000/docs](http://localhost:8000/docs) |
----
-**Testovanie MQTT komunikácie**
+| Metrics dashboard | http://localhost:5173 |
+| API documentation | http://localhost:8000/docs |
+| PostgreSQL | localhost:54827 |
+| Prometheus | http://localhost:9091 |
+| Grafana | http://localhost:3001/d/pico-environment |
 
-Odošlite testovaciu správu manuálne:
-```bash
-docker exec -it mosquitto mosquitto_pub \
-  -h mosquitto -p 1883 \
-  -t pico/env \
-  -m '{"co2": 2000, "lux": 100, "temp": 24.5, "hum": 60.0}'
+## Device configuration
+
+For a new device, create `firmware/secrets.py` and upload `firmware/` with `lib/`:
+
+```python
+secrets = {
+    "ssid": "<wifi-name>",
+    "password": "<wifi-password>",
+    "MQTT_BROKER": "test.mosquitto.org",
+    "MQTT_PORT": 1883,
+    "CLIENT_ID": "<unique-device-id>",
+    "TOPIC_SENSOR": b"<MQTT_TOPIC>",
+}
 ```
-Prometheus (cez mqtt-exporter) následne uvidí aktualizované metriky:
-`pico_co2`,
-`pico_lux`,
-`pico_temp`,
-`pico_hum`.  
-**Notifier** zareaguje pri prekročení prahovej hodnoty a odošle upozornenie cez Telegram.
 
-**Premenné prostredia backendu**
+Topics use slash-separated letters, numbers, underscores and hyphens. The public
+broker does not provide confidentiality or authenticity; messages can be read or
+spoofed. Use this deployment on a trusted LAN.
 
-Definované v `.env` a odovzdávané cez `env_file` v `docker-compose.yml`:
+## Checks
 
-| Premenná | Povinná | Popis |
-| --- | --- | --- |
-| `PG_HOST` | ✔️ áno | Hostname databázy PostgreSQL (`postgres` v docker-compose) |
-| `PG_PORT` | ✔️ áno | Port databázy PostgreSQL (štandardne `5432`) |
-| `PG_DB` | ✔️ áno | Názov databázy (napr. `metrics`) |
-| `PG_USER` | ✔️ áno | Používateľ databázy |
-| `PG_PASSWORD` | ✔️ áno | Heslo databázy |
-| `MQTT_BROKER` | ✔️ áno | Hostname MQTT brokeru (`mosquitto`) |
-| `JWT_SECRET` | ✔️ áno | Tajný kľúč pre podpisovanie tokenov |
-| `ACCESS_TOKEN_MINUTES` | ✖️ nie | Platnosť prístupového tokenu v minútach |
-| `BOOTSTRAP_SECRET` | ✖️ nie | Tajný údaj pre inicializáciu administrátora alebo bootstrap operácie |
-
-**Detaily služby Notifier**
-
-Zdrojový kód sa nachádza v adresári `backend/notifier/`.
-
-| Súbor | Účel |
-| --- | --- |
-| `src/main.py` | Hlavná logika MQTT klienta a upozornení |
-| `src/models.py` | Načítanie konfigurácie pomocou Pydantic Settings |
-| `src/healthcheck.py` | Skript pre Docker health-check |
-| `Dockerfile` | Inštrukcie na zostavenie obrazu |
-| `requirements.txt` | Python závislosti |
-
-**Premenné prostredia služby Notifier**
-
-| Premenná | Povinná | Popis |
-| --- | --- | --- |
-| `NOTIFIER_BROKER` | ✔️ áno | Hostname MQTT brokeru (`mosquitto`) |
-| `NOTIFIER_PORT` | ✖️ nie | Port brokeru (predvolene `1883`) |
-| `NOTIFIER_USER` | ✖️ nie | MQTT používateľské meno |
-| `NOTIFIER_PASSWORD` | ✖️ nie | MQTT heslo |
-| `NOTIFIER_BASE_TOPIC` | ✔️ áno | Základná MQTT téma (`pico/env`) |
-| `NOTIFIER_APPRISE_URL` | ✖️ nie | Apprise URL (Telegram, e-mail a pod.) |
-
-**Healthcheck**
-
-Docker kontajner služby Notifier vykonáva health check každých 30 sekúnd:  
-- pripojí sa k MQTT brokeru  
-- odoberie tému `<BASE_TOPIC>/status`   
-- očakáva správu `online`  
-- ak správa chýba alebo je nesprávna, kontajner sa označí ako unhealthy  
-
-Healthcheck je definovaný v:  
-`Dockerfile`  
-`docker-compose.yml`  
-`src/healthcheck.py`  
-
----
-
-**Licencia**
-
-Tento projekt je určený predovšetkým na vzdelávacie účely.  
-Môže slúžiť ako referencia pre vlastné riešenia monitorovania, upozorňovania a ukladania metrík.
+- Python 3.13: `pip install -r requirements-dev.txt`, then `ruff check .` and `pytest -q`.
+  Database tests require `TEST_DATABASE_URL` pointing to a disposable database.
+- Frontend: in `frontend/`, run `npm ci`, `npm run lint`, `npm test`, `npm run build`.
+- End-to-end: `python scripts/smoke_test.py` runs an isolated stack and cleans it up.
