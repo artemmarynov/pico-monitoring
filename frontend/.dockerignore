@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-ssr
+.vite
+coverage
+.eslintcache
+.env*
+.git
+*.log
+src/**/*.test.jsx

@@ -1,0 +1,17 @@
+# Only files required by backend/api/Dockerfile belong in this context.
+**
+!backend/
+!backend/api/
+!backend/api/**
+!backend/common/
+!backend/common/**
+!scripts/
+!scripts/**
+!migrations/
+!migrations/**
+
+# Exclude local files even inside allowed directories.
+**/__pycache__/
+**/*.py[cod]
+**/.env*
+**/secrets.py

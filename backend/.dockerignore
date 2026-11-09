@@ -1,0 +1,11 @@
+# The notifier image needs only its own code and shared validation.
+**
+!notifier/
+!notifier/**
+!common/
+!common/**
+
+**/__pycache__/
+**/*.py[cod]
+**/.env*
+**/secrets.py

@@ -1,134 +1,203 @@
 services:
-  # --- FRONTEND ---
   frontend:
-    container_name: react_app
     build: ./frontend
-    ports:
-      - "5173:5173"
-    networks:
-      - monitoring
+    restart: unless-stopped
+    ports: ["5173:80"]
     depends_on:
-      - fastapi
-    volumes:
-      - ./frontend:/app
-      - /app/node_modules
-    environment:
-      - CHOKIDAR_USEPOLLING=true
-      - VITE_API_BASE=${VITE_API_BASE}
+      fastapi:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks: [monitoring]
 
-  # --- BACKEND (FastAPI) ---
   fastapi:
-    container_name: fastapi_app
-    build: ./backend/postgress-websocket 
-    ports:
-      - "8000:8000"
-    env_file: .env
+    build:
+      context: .
+      dockerfile: backend/api/Dockerfile
+    restart: unless-stopped
+    ports: ["127.0.0.1:8000:8000"]
+    environment:
+      PG_HOST: postgres
+      PG_PORT: 5432
+      PG_USER: ${PG_USER:?Set PG_USER}
+      PG_PASSWORD: ${PG_PASSWORD:?Set PG_PASSWORD}
+      PG_DB: ${PG_DB:?Set PG_DB}
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-pico_grafana}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?Set GRAFANA_DB_PASSWORD}
+      SENSOR_STALE_SECONDS: ${SENSOR_STALE_SECONDS:-60}
+      MQTT_BROKER: mosquitto
+      MQTT_USER: ${MQTT_USER:-pico-api}
+      MQTT_TOPIC: ${MQTT_TOPIC:-sensors/room/env}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:?Set MQTT_PASSWORD}
     depends_on:
       postgres:
         condition: service_healthy
-    networks:
-      - monitoring
-
-  # --- DATABASE ---
-  postgres:
-    container_name: pico_metrics
-    image: postgres:latest
-    
-    volumes:
-      - postgres_data:/var/lib/postgresql 
-    ports:
-      - "54827:5432"
-    env_file:
-      - .env
-    environment:
-      POSTGRES_USER: ${PG_USER}
-      POSTGRES_DB: ${PG_DB}
-      POSTGRES_PASSWORD: ${PG_PASSWORD}
+      mosquitto:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 5s
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
+      interval: 10s
       timeout: 5s
       retries: 5
-    networks:
-      - monitoring
+      start_period: 10s
+    networks: [monitoring]
 
-  # --- MQTT & INFRASTRUCTURE ---
+  postgres:
+    # PostgreSQL 18.1, the same major version and volume layout as the old image.
+    image: postgres@sha256:38d5c9d522037d8bf0864c9068e4df2f8a60127c6489ab06f98fdeda535560f9
+    restart: unless-stopped
+    volumes: ["postgres_data:/var/lib/postgresql"]
+    ports: ["127.0.0.1:54827:5432"]
+    environment:
+      POSTGRES_USER: ${PG_USER:?Set PG_USER}
+      POSTGRES_PASSWORD: ${PG_PASSWORD:?Set PG_PASSWORD}
+      POSTGRES_DB: ${PG_DB:?Set PG_DB}
+    healthcheck:
+      test: ["CMD-SHELL", 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks: [monitoring]
+
   mosquitto:
-    image: eclipse-mosquitto:latest
-    container_name: mosquitto
-    ports:
-      - "1883:1883"
-      - "9001:9001"  
+    image: eclipse-mosquitto@sha256:077fe4ff4c49df1e860c98335c77dda08360629e0e2a718147027e4db3eace9d
+    restart: unless-stopped
+    entrypoint: ["/bin/sh", "/pico-entrypoint.sh"]
+    environment:
+      MQTT_USER: ${MQTT_USER:-pico-api}
+      MQTT_TOPIC: ${MQTT_TOPIC:-sensors/room/env}
+      MQTT_PASSWORD: ${MQTT_PASSWORD:?Set MQTT_PASSWORD}
+      NOTIFIER_USER: ${NOTIFIER_USER:-pico-notifier}
+      NOTIFIER_PASSWORD: ${NOTIFIER_PASSWORD:?Set NOTIFIER_PASSWORD}
+      EXPORTER_USER: ${EXPORTER_USER:-pico-exporter}
+      EXPORTER_PASSWORD: ${EXPORTER_PASSWORD:?Set EXPORTER_PASSWORD}
     volumes:
-      - ./backend/mosquitto/config:/mosquitto/config
-    networks:
-      - monitoring
+      - ./infra/mosquitto/config/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mosquitto/entrypoint.sh:/pico-entrypoint.sh:ro
+    tmpfs: [/run/pico-mqtt]
+    healthcheck:
+      test: ["CMD-SHELL", 'mosquitto_pub -h 127.0.0.1 -u "$$MQTT_USER" -P "$$MQTT_PASSWORD" -t pico/health -n -q 1']
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks: [monitoring]
 
   mqtt-exporter:
-    image: hikhvar/mqtt2prometheus:latest
-    container_name: mqtt-exporter
+    image: hikhvar/mqtt2prometheus@sha256:8e166d36feaa5ddcad703eef3a2c5167a154d6eef306a40fe6509861580c0714
+    restart: unless-stopped
     command: ["-config", "/config.yml"]
-    volumes:
-      - ./backend/mqtt-exporter/config.yml:/config.yml
-    ports:
-      - "9641:9641"
+    environment:
+      MQTT2PROM_MQTT_USER: ${EXPORTER_USER:-pico-exporter}
+      MQTT2PROM_MQTT_PASSWORD: ${EXPORTER_PASSWORD:?Set EXPORTER_PASSWORD}
+    configs:
+      - source: mqtt-exporter-config
+        target: /config.yml
+    ports: ["127.0.0.1:9641:9641"]
     depends_on:
-      - mosquitto
-    networks:
-      - monitoring
-
-  prometheus:
-    image: prom/prometheus:latest
-    container_name: prometheus
-    volumes:
-      - ./backend/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-    command:
-      - "--config.file=/etc/prometheus/prometheus.yml"
-    ports:
-      - "9091:9090"
-    networks:
-      - monitoring
+      mosquitto:
+        condition: service_healthy
+    networks: [monitoring]
 
   notifier:
-    build: ./backend/notifier
-    image: am106ac/notifier:latest
-    container_name: notifier
+    build:
+      context: ./backend
+      dockerfile: notifier/Dockerfile
     restart: unless-stopped
     environment:
-      - NOTIFIER_BROKER=mosquitto
-      - NOTIFIER_PORT=1883
-      - NOTIFIER_BASE_TOPIC=artem/pico2wh/env
-      - NOTIFIER_APPRISE_URL=${NOTIFIER_APPRISE_URL}
+      NOTIFIER_BROKER: mosquitto
+      MQTT_TOPIC: ${MQTT_TOPIC:-sensors/room/env}
+      SENSOR_STALE_SECONDS: ${SENSOR_STALE_SECONDS:-60}
+      NOTIFIER_USER: ${NOTIFIER_USER:-pico-notifier}
+      NOTIFIER_PASSWORD: ${NOTIFIER_PASSWORD:?Set NOTIFIER_PASSWORD}
+      NOTIFIER_APPRISE_URL: ${NOTIFIER_APPRISE_URL:-}
     depends_on:
-      - mosquitto
+      mosquitto:
+        condition: service_healthy
     healthcheck:
-      test: ["CMD", "python3", "/app/healthcheck.py"]
-      interval: 30s
-      timeout: 10s
+      test: ["CMD", "python", "-m", "notifier.healthcheck"]
+      interval: 10s
+      timeout: 5s
       retries: 3
-    networks:
-      - monitoring
+      start_period: 10s
+    networks: [monitoring]
+
+  prometheus:
+    image: prom/prometheus@sha256:2b6f734e372c1b4717008f7d0a0152316aedd4d13ae17ef1e3268dbfaf68041b
+    restart: unless-stopped
+    volumes: ["./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro"]
+    command: ["--config.file=/etc/prometheus/prometheus.yml"]
+    ports: ["127.0.0.1:9091:9090"]
+    networks: [monitoring]
 
   grafana:
-    image: grafana/grafana-oss:latest
-    container_name: grafana
-    ports:
-      - "3001:3000"
-    depends_on:
-      - prometheus
-      - postgres
+    image: grafana/grafana-oss@sha256:b0ae311af06228bcfd4a620504b653db80f5b91e94dc3dc2a5b7dab202bcde20
+    restart: unless-stopped
+    ports: ["127.0.0.1:3001:3000"]
     environment:
-      - GF_SECURITY_ADMIN_USER=admin
-      - GF_SECURITY_ADMIN_PASSWORD=admin
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_PLUGINS_PREINSTALL_DISABLED: "true"
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD}
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER:-pico_grafana}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD:?Set GRAFANA_DB_PASSWORD}
+      PG_DB: ${PG_DB:?Set PG_DB}
     volumes:
       - grafana_data:/var/lib/grafana
-    networks:
-      - monitoring
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards/pico:ro
+    depends_on:
+      fastapi:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    networks: [monitoring]
 
 networks:
   monitoring:
     driver: bridge
-
 volumes:
   postgres_data:
   grafana_data:
+
+configs:
+  mqtt-exporter-config:
+    content: |
+      # mqtt-exporter/config.yml
+      mqtt:
+        server: tcp://mosquitto:1883
+        user: ""
+        password: ""
+        topic_path: "${MQTT_TOPIC:-sensors/room/env}/validated"
+
+      cache:
+        timeout: 30s
+
+      json_parsing:
+        separator: .
+
+      metrics:
+        - prom_name: pico_co2
+          mqtt_name: co2
+          help: "CO2 concentration"
+          type: gauge
+
+        - prom_name: pico_lux
+          mqtt_name: lux
+          help: "Light level"
+          type: gauge
+
+        - prom_name: pico_temp
+          mqtt_name: temp
+          help: "Temperature in Celsius"
+          type: gauge
+
+        - prom_name: pico_hum
+          mqtt_name: hum
+          help: "Relative Humidity in percent"
+          type: gauge
