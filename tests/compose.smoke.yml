@@ -1,0 +1,53 @@
+services:
+  frontend:
+    healthcheck:
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    image: pico-monitoring-smoke-frontend
+    ports: !override ["127.0.0.1::80"]
+  fastapi:
+    healthcheck:
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    image: pico-monitoring-smoke-api
+    ports: !override ["127.0.0.1::8000"]
+  notifier:
+    healthcheck:
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    image: pico-monitoring-smoke-notifier
+  postgres:
+    healthcheck:
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    ports: !reset []
+    volumes: !reset []
+    tmpfs: [/var/lib/postgresql]
+  mosquitto:
+    healthcheck:
+      interval: 1s
+      timeout: 3s
+      retries: 30
+    volumes: !override
+      - ./tests/mosquitto.conf:/mosquitto/config/mosquitto.conf:ro
+      - ./infra/mosquitto/entrypoint.sh:/pico-entrypoint.sh:ro
+  mqtt-exporter:
+    ports: !override ["127.0.0.1::9641"]
+  prometheus:
+    ports: !reset []
+    tmpfs: ["/prometheus:uid=65534,gid=65534,mode=0755"]
+  grafana:
+    healthcheck:
+      interval: 1s
+      timeout: 5s
+      retries: 60
+    ports: !override ["127.0.0.1::3000"]
+    volumes: !override
+      - ./infra/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./infra/grafana/dashboards:/var/lib/grafana/dashboards/pico:ro
+    tmpfs:
+      - /var/lib/grafana:uid=472,gid=0,mode=0755
